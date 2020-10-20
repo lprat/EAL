@@ -1086,6 +1086,9 @@ def main():
             #date
             #2019-12-11 15:20
             for k,v in files.items():
+                if 'lastmodified' not in v:
+                    print('Error to find file: '+str(k)+' ( '+str(v)+' )')
+                    continue
                 date=datetime.strptime(v['lastmodified'], '%Y-%m-%d %H:%M')
                 date2=date.strftime('%Y-%m-%dT%H:%M:%S')
                 jsonl={"message": v['message'], "parser": 'find', "timestamp": str(int(datetime.timestamp(date))), "datetime": date2, "timestamp_desc": "Metadata Modification Time", "data_type": "fs:stat", "host": hostname, "file_entry_type": v['type_file'], "file_group": v['group'], "file_perm": v['permissions'], "file_owner": v['owner'], "inode": v['inode'], "filename": k, "blocksize": v['blocksize']}
