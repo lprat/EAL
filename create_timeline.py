@@ -729,7 +729,7 @@ def main():
                     #type result
                     #print("TYPE: line {} contents {}".format(cnt, line))
                     rtmp=line.split(': ')
-                    if rtmp and len(rtmp) > 1 and not 'ERROR: cannot read' in ': '.join(rtmp[1:]).rstrip("\n\r").strip():
+                    if rtmp and len(rtmp) > 1 and not ('ERROR: cannot read' in ': '.join(rtmp[1:]).rstrip("\n\r").strip() or 'cannot open' in ': '.join(rtmp[1:]).rstrip("\n\r").strip()):
                         if rtmp[0] in files:
                             files[rtmp[0]]['type'] = ': '.join(rtmp[1:]).rstrip("\n\r").strip()
                         else:
