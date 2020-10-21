@@ -1091,7 +1091,7 @@ def main():
                     continue
                 date=datetime.strptime(v['lastmodified'], '%Y-%m-%d %H:%M')
                 date2=date.strftime('%Y-%m-%dT%H:%M:%S')
-                jsonl={"message": v['message'], "parser": 'find', "timestamp": str(int(datetime.timestamp(date))), "datetime": date2, "timestamp_desc": "Metadata Modification Time", "data_type": "fs:stat", "host": hostname, "file_entry_type": v['type_file'], "file_group": v['group'], "file_perm": v['permissions'], "file_owner": v['owner'], "inode": v['inode'], "filename": k, "blocksize": v['blocksize']}
+                jsonl={"message": v['message'], "parser": 'find', "timestamp": str(int(datetime.timestamp(date))), "datetime": date2, "timestamp_desc": "Metadata Modification Time", "data_type": "fs:stat", "host": hostname, "file_entry_type": v['type_file'], "file_group": v['group'], "file_perm": v['permissions'], "file_owner": v['owner'], "inode": v['inode'], "filename": k, "blocksize": v['blocksize'], "tag": []}
                 if 'ext' in v and v['ext']:
                     jsonl["file_ext"]=v['ext']
                     jsonl["file_statext"]=stat_ext[v['ext']]
@@ -1143,11 +1143,13 @@ def main():
                 else:
                     jsonl["file_entropy"]=None
                 if 'filelink' in v and v['filelink']:
+                    jsonl['tag'].append('file_link')
                     jsonl['filelink']=v['filelink']
                 else:
                     jsonl['filelink']=None
                 if 'etc_file' in v and v['etc_file']:
                     jsonl['file_etc']=True
+                    jsonl['tag'].append('file_etc')
                 else:
                     jsonl['file_etc']=False
                 if 'configuration' in v and v['configuration']:
@@ -1155,49 +1157,60 @@ def main():
                 else:
                     jsonl['file_cfg']=False
                 if 'docker_conf' in v and v['docker_conf']:
-                    jsonl['file_docker']=True
-                else:
-                    jsonl['file_docker']=False
+                    #jsonl['file_docker']=True
+                    jsonl['tag'].append('docker_conf')
+                #else:
+                    #jsonl['file_docker']=False
                 if 'history' in v and v['history']:
-                    jsonl['file_history']=True
-                else:
-                    jsonl['file_history']=False
+                    #jsonl['file_history']=True
+                    jsonl['tag'].append('file_history')
+                #else:
+                    #jsonl['file_history']=False
                 if 'browser' in v and v['browser']:
-                    jsonl['file_browser']=True
-                else:
-                    jsonl['file_browser']=False
+                    #jsonl['file_browser']=True
+                    jsonl['tag'].append('file_browser')
+                #else:
+                    #jsonl['file_browser']=False
                 if 'hidden' in v and v['hidden']:
-                    jsonl['file_hidden']=True
-                else:
-                    jsonl['file_hidden']=False
+                    #jsonl['file_hidden']=True
+                    jsonl['tag'].append('file_hidden')
+                #else:
+                    #jsonl['file_hidden']=False
                 if 'service' in v and v['service']:
-                    jsonl['file_service']=True
-                else:
-                    jsonl['file_service']=False
-                if 'executable' in v and v['executable']:
-                    jsonl['file_executable']=True
-                else:
-                    jsonl['file_executable']=False
-                if 'executable_nocommun_path' in v and v['executable_nocommun_path']:
-                    jsonl['file_executable_nocommonpath']=True
-                else:
-                    jsonl['file_executable_nocommonpath']=False
+                    #jsonl['file_service']=True
+                    jsonl['tag'].append('file_service')
+                #else:
+                    #jsonl['file_service']=False
+                if 'executable' in v and v['executable'] and v['type_file'] == 'file':
+                    #jsonl['file_executable']=True
+                    jsonl['tag'].append('file_executable')
+                #else:
+                    #jsonl['file_executable']=False
+                if 'executable_nocommun_path' in v and v['executable_nocommun_path'] and v['type_file'] == 'file':
+                    #jsonl['file_executable_nocommonpath']=True
+                    jsonl['tag'].append('file_executable_nocommonpath')
+                #else:
+                    #jsonl['file_executable_nocommonpath']=False
                 if 'suid_sgid' in v and v['suid_sgid']:
-                    jsonl['file_suid_sgid']=True
-                else:
-                    jsonl['file_suid_sgid']=False
+                    jsonl['tag'].append('file_suid_guid')
+                    #jsonl['file_suid_sgid']=True
+                #else:
+                    #jsonl['file_suid_sgid']=False
                 if 'writable' in v and v['writable']:
                     jsonl['file_writable']=True
                 else:
                     jsonl['file_writable']=False
                 if 'unknown_owner' in v and v['unknown_owner']:
-                    jsonl['file_unknown_owner']=True
-                else:
-                    jsonl['file_unknown_owner']=False
+                    jsonl['tag'].append('file_unknown_owner')
+                    #jsonl['file_unknown_owner']=True
+                #else:
+                    #jsonl['file_unknown_owner']=False
                 if 'space_end' in v and v['space_end']:
-                    jsonl['file_space_end']=True
-                else:
-                    jsonl['file_space_end']=False
+                    #jsonl['file_space_end']=True
+                    #TODO fix pb with space ''.join(filename) << when multi spaces only replace one space
+                    jsonl['tag'].append('file_space_end')
+                #else:
+                    #jsonl['file_space_end']=False
                 if 'rpm' in v and v['rpm']:
                     jsonl['file_pkgrpm']=v['rpm']
                 else:
@@ -1211,57 +1224,72 @@ def main():
                 else:
                     jsonl['file_pkgaix']=None
                 if 'CVE' in v and v['CVE']:
-                    jsonl['file_cve']=True
-                else:
-                    jsonl['file_cve']=False
+                    #jsonl['file_cve']=True
+                    jsonl['tag'].append('file_cve')
+                #else:
+                    #jsonl['file_cve']=False
                 if 'debint' in v and v['debint']:
                     jsonl['file_pkg_integrity']=False
+                    jsonl['tag'].append('file_pb_pkg_integrity')
                 else:
                     jsonl['file_pkg_integrity']=True
                 if 'rpmint' in v and v['rpmint']:
                     jsonl['file_pkg_integrity']=False
+                    jsonl['tag'].append('file_pb_pkg_integrity')
                 else:
                     jsonl['file_pkg_integrity']=True
                 if 'kernel_module_loaded' in v and v['kernel_module_loaded']:
-                    jsonl['file_kernelmodule']=True
-                else:
-                    jsonl['file_kernelmodule']=False
+                    #jsonl['file_kernelmodule']=True
+                    jsonl['tag'].append('file_kernelmodule')
+                #else:
+                    #jsonl['file_kernelmodule']=False
                 if 'crontab' in v and v['crontab']:
-                    jsonl['file_crontab']=True
-                else:
-                    jsonl['file_crontab']=False
+                    #jsonl['file_crontab']=True
+                    jsonl['tag'].append('file_crontab')
+                #else:
+                    #jsonl['file_crontab']=False
                 if 'env' in v and v['env']:
-                    jsonl['file_env']=True
-                else:
-                    jsonl['file_env']=False
+                    #jsonl['file_env']=True
+                    jsonl['tag'].append('file_env')
+                #else:
+                    #jsonl['file_env']=False
                 if 'tmpfs' in v and v['tmpfs']:
-                    jsonl['file_tmpfs']=True
-                else:
-                    jsonl['file_tmpfs']=False
+                    #jsonl['file_tmpfs']=True
+                    jsonl['tag'].append('file_tmpfs')
+                #else:
+                    #jsonl['file_tmpfs']=False
                 if 'net' in v and v['net']:
-                    jsonl['file_network']=True
-                else:
-                    jsonl['file_network']=False
+                    #jsonl['file_network']=True
+                    jsonl['tag'].append('file_network')
+                #else:
+                    #jsonl['file_network']=False
                 if 'pid' in v and v['pid']:
                     jsonl['file_pid']=v['pid']
+                    jsonl['tag'].append('file_pid')
                 else:
                     jsonl['file_pid']=None
                 if 'ldd' in v and v['ldd']:
                     jsonl['file_ldd']=v['ldd']
+                    jsonl['tag'].append('file_ldd')
                 else:
                     jsonl['file_ldd']=None
                 if 'fd' in v and v['fd']:
                     jsonl['file_fd']=v['fd']
+                    jsonl['tag'].append('file_fd')
                 else:
                     jsonl['file_fd']=None
                 if 'lsof' in v and v['lsof']:
                     jsonl['file_lsof']=v['lsof']
+                    jsonl['tag'].append('file_lsof')
                 else:
                     jsonl['file_lsof']=None
                 if 'ps' in v and v['ps']:
                     jsonl['file_ps']=v['ps']
+                    jsonl['tag'].append('file_ps')
                 else:
                     jsonl['file_ps']=None
+                if not jsonl['tag']
+                  del jsonl['tag']
                 print("%s" % (json.dumps(jsonl)),file=fx)
             fx.close()    
 
