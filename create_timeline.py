@@ -1288,7 +1288,7 @@ def main():
                     jsonl['tag'].append('file_ps')
                 else:
                     jsonl['file_ps']=None
-                if not jsonl['tag']
+                if not jsonl['tag']:
                   del jsonl['tag']
                 print("%s" % (json.dumps(jsonl)),file=fx)
             fx.close()    
