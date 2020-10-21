@@ -94,9 +94,13 @@ Take file: /tmp/artefacts-$(hostname).tgz & extract.log
   
 ~~~
 $python3 create_timeline.py dir_artefac_extract/
-
+cd dir_artefac_extract/;for i in $(ls *.t*gz);do tar -zxf $i;done;cd ..
+log2timeline.py artefac_extract.plaso dir_artefac_extract/
+psort.py -o null --analysis tagging --tagging-file /path_tag/tag_linux.txt artefac_extract.plaso
+#import in timesketch
+tsctl import --file artefac_extract.plaso --username your_user --timeline_name' artefac_extract_events
+tsctl import --file timeline.jsonl --username your_user --timeline_name' artefac_extract_files
 ~~~
-Take file: timeline.jsonl and import in timesketch!
 
 ## Requirements
 
