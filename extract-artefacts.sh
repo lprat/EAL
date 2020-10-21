@@ -1434,6 +1434,10 @@ if which ypcat;then ypcat passwd > /tmp/artefacts/ypcat-passwd;fi
 if which who;then who > /tmp/artefacts/who_cmd;fi
 if which finger;then finger > /tmp/artefacts/finger_cmd;fi
 
+## IPTABLES
+if which iptables-save;then iptables-save > /tmp/artefacts/iptables_rules.v4;fi
+if which ip6tables-save;then ip6tables-save > /tmp/artefacts/iptables_rules.v6;fi
+
 ##Deleted file on ext3 & ext4
 #restore
 #extundelete --restore-all --after $(date -d "-2 hours" +%s) /dev/sdX1
