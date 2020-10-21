@@ -95,7 +95,7 @@ Take file: /tmp/artefacts-$(hostname).tgz & extract.log
   
 ~~~
 $python3 create_timeline.py dir_artefac_extract/
-cd dir_artefac_extract/;for i in $(ls *.t*gz);do tar -zxf $i;done;cd ..
+cd dir_artefac_extract/;for i in $(ls *.t*gz);do tar -zxf $i;done;find . -name "*.gz" | xargs gunzip;cd ..
 log2timeline.py artefac_extract.plaso dir_artefac_extract/
 psort.py -o null --analysis tagging --tagging-file /path_tag/tag_linux.txt artefac_extract.plaso
 #import in timesketch
