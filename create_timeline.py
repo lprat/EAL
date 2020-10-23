@@ -1129,6 +1129,8 @@ def main():
                 else:
                     jsonl["file_device_major"]=None
                 if 'type' in v and v['type']:
+                    if 'statically linked' in v['type']:
+                        jsonl['tag'].append('static_exe')
                     jsonl["file_type"]=v['type']
                     jsonl["file_stattype"]=stat_type[v['type']]
                 else:
