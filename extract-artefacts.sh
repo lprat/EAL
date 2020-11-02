@@ -1438,6 +1438,9 @@ if which finger;then finger > /tmp/artefacts/finger_cmd;fi
 if which iptables-save;then iptables-save > /tmp/artefacts/iptables_rules.v4;fi
 if which ip6tables-save;then ip6tables-save > /tmp/artefacts/iptables_rules.v6;fi
 
+## MYSQL
+find /var/lib \( -fstype nfs -prune \) -o -name '*.frm' -o -name 'ib_logfile*' -o -name 'ibdata*'|tar -zcpvf /tmp/artefacts/mysqllog.tar.gz --files-from -
+
 ##Deleted file on ext3 & ext4
 #restore
 #extundelete --restore-all --after $(date -d "-2 hours" +%s) /dev/sdX1
