@@ -1223,14 +1223,17 @@ def main():
                     #jsonl['file_space_end']=False
                 if 'rpm' in v and v['rpm']:
                     jsonl['file_pkgrpm']=v['rpm']
+                    jsonl['tag'].append('file_from_package')
                 else:
                     jsonl['file_pkgrpm']=None
                 if 'deb' in v and v['deb']:
                     jsonl['file_pkgdeb']=v['deb']
+                    jsonl['tag'].append('file_from_package')
                 else:
                     jsonl['file_pkgdeb']=None
                 if 'aix' in v and v['aix']:
                     jsonl['file_pkgaix']=v['aix']
+                    jsonl['tag'].append('file_from_package')
                 else:
                     jsonl['file_pkgaix']=None
                 if 'CVE' in v and v['CVE']:
