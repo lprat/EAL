@@ -1200,6 +1200,7 @@ def main():
                     #jsonl['file_suid_sgid']=False
                 if 'writable' in v and v['writable']:
                     jsonl['file_writable']=True
+                    jsonl['tag'].append('file_writable')
                 else:
                     jsonl['file_writable']=False
                 if 'unknown_owner' in v and v['unknown_owner']:
