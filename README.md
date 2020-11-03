@@ -96,13 +96,142 @@ Take file: /tmp/artefacts-$(hostname).tgz & extract.log
 ~~~
 $python3 create_timeline.py dir_artefac_extract/
 cd dir_artefac_extract/;for i in $(ls *.t*gz);do tar -zxf $i;done;find . -name "*.gz" | xargs gunzip;cd ..
-log2timeline.py artefac_extract.plaso dir_artefac_extract/
-psort.py -o null --analysis tagging --tagging-file /path_tag/tag_linux.txt artefac_extract.plaso
-#import in timesketch
-tsctl import --file artefac_extract.plaso --username your_user --timeline_name artefac_extract_events
+docker pull log2timeline/plaso
+docker run --rm -v /data/:/data/ log2timeline/plaso log2timeline.py /data/artefacts_tl.plaso /data/artefacts/
+docker run --rm -v /data/:/data/ log2timeline/plaso psort.py -o null --analysis tagging --tagging-file /data/tag_linux.txt /data/artefacts_tl.plaso
+#import in timesketch (docker exec -ti docker_timesketch_1 bash)
+tsctl import --file /data/artefacts_tl.plaso --username your_user --timeline_name artefac_extract_events
 tsctl import --file timeline.jsonl --username your_user --timeline_name artefac_extract_files
 ~~~
 
+### Timesketch queries
+(Lucene query: https://lucene.apache.org/core/2_9_4/queryparsersyntax.html)  
+
+ - select just file
+~~~
+file_entry_type: file
+~~~
+ - Use date (if you known the date of the incident)
+ - Use file type (if you search specialy file type: cmd file)
+~~~
+file_type: *static*
+~~~
+ - Use file stat type (find rare types)
+~~~
+file_stattype: [1 TO 5] 
+~~~
+ - Use file extension (if you search specialy file extension: *.php)
+~~~
+file_ext: php
+~~~
+ - Use file stat extension (find rare extension)
+~~~
+file_statext: [1 TO 5] 
+~~~
+ - Use file name (if you search specialy file name: backdoor)
+~~~
+file_name: x.*
+file_name_withoutext: x
+~~~
+ - Use file stat filename (find rare filename)
+~~~
+file_statname: [1 TO 5] 
+~~~
+ - Use file name suspect 
+~~~
+tag: suspect_filename
+~~~
+ - Use file path (if you search specialy file path: )
+~~~
+file_path: *upload*
+~~~
+ - Use file stat path (find rare path use)
+~~~
+file_statpath: [1 TO 5] 
+~~~
+ - Use file path suspect name
+~~~
+tag: suspect_pathname
+~~~
+ - Use file size (in bytes)
+~~~
+file_sizeint: [1024 TO 2048]
+~~~
+ - Use owner (if you known user compromised)
+~~~
+file_owner: user
+~~~
+ - Use md5sum (the value cannot extracted by default)
+~~~
+md5sum: md5sum
+~~~
+ - use package relation
+~~~
+file_pkgrpm: *ssh*
+file_pkgdeb: *ssh*
+file_pkgaix: *ssh*
+~~~
+ - Use tags
+~~~
+# Event with tag
+_exists_:tag
+#Event with tag "static_exe" - can indicate backdoor compiled static
+tag: static_exe
+#Event with tag "filelink" (use with time)
+tag: filelink
+#Event with tag "file_etc" (use with time)
+tag: file_etc
+#Event with tag "docker_conf" (use with time)
+tag: docker_conf
+#Event with tag "file_cfg" (use with time)
+tag: file_cfg
+#Event with tag "file_history" (ex: bash_history, mysql_history, ...)
+tag: file_history
+#Event with tag "file_browser" (ex: cache browser)
+tag: file_browser
+#Event with tag "file_hidden" (depending on the path may be suspect or use with time)
+tag: file_hidden
+#Event with tag "file_service" (use with time)
+tag: file_service
+#Event with tag "file_executable" (use with time or path)
+tag: file_executable
+#Event with tag "executable_nocommun_path" (suspect path for executable)
+tag: executable_nocommun_path
+#Event with tag "file_suid_guid" (use with time or right ...)
+tag: file_suid_guid
+#Event with tag "file_writable" (file writable by everybody -> wanring if used in cron/conf/suid/log/....)
+tag: file_writable
+#Event with tag "file_unknown_owner" (may be suspect)
+tag: file_unknown_owner
+#Event with tag "file_space_end" (may be used for exploit user: https://attack.mitre.org/techniques/T1036/006/)
+tag: file_space_end
+#Event with tag "file_from_package" (file from package)
+tag: file_from_package
+#Event with tag "file_cve" (file from package content CVE vuln)
+tag: file_cve
+#Event with tag "file_pb_pkg_integrity" (file package integrity error)
+tag: file_pb_pkg_integrity
+#Event with tag "file_kernelmodule" (file kernel module loaded)
+tag: file_kernelmodule
+#Event with tag "file_crontab" (file used in crontab
+tag: file_crontab
+#Event with tag "file_env" (file used in env)
+tag: file_env
+#Event with tag "file_tmpfs" (file in tmpfs +x => suspect)
+tag: file_tmpfs
+#Event with tag "file_network" (file used in process create network connexion)
+tag: file_network
+#Event with tag "file_pid" (file used in process)
+tag: file_pid
+#Event with tag "file_ldd" (file library used in process
+tag: file_ldd
+#Event with tag "file_fd" (file used by process)
+tag: file_fd
+#Event with tag "file_lsof" (file used by process)
+tag: file_lsof
+#Event with tag "file_ps" (file runned)
+tag: file_ps
+~~~
 ## Requirements
 
 - python3: json
