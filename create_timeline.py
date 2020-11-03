@@ -1107,11 +1107,17 @@ def main():
                 if 'file_path' in v and v['file_path']:
                     jsonl["file_path"]=v['file_path']
                     jsonl["file_statpath"]=stat_path[v['file_path']]
+                    #add suspect name
+                    if bool(re.match(r"[bcdfghjklmnpqrstvwxz]{4,}", v['file_path'], flags=re.IGNORECASE)) or bool(re.match(r"[aeuoiy]{4,}", v['file_path'], flags=re.IGNORECASE)):
+                        jsonl['tag'].append('suspect_pathname')
                 else:
                     jsonl["file_path"]=None
                     jsonl["file_statpath"]=0
                 if 'file_name_withoutext' in v and v['file_name_withoutext']:
                     jsonl["file_name_withoutext"]=v['file_name_withoutext']
+                    #add suspect name
+                    if bool(re.match(r"[bcdfghjklmnpqrstvwxz]{4,}", v['file_name_withoutext'], flags=re.IGNORECASE)) or bool(re.match(r"[aeuoiy]{4,}", v['file_name_withoutext'], flags=re.IGNORECASE)):
+                        jsonl['tag'].append('suspect_filename')
                 else:
                     jsonl["file_name_withoutext"]=None
                 if 'size' in v and v['size']:
