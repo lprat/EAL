@@ -22,6 +22,8 @@ This tool written in bash for extract artefacts, and python(v3) for create timel
   - /var/log/
   - /run/log/
   - all files with end *.log.*
+- Mysql
+  - Logs files: *.frm, ibdata* 
 - etc (all)
 - network
   - lsof
