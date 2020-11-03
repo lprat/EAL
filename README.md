@@ -94,6 +94,7 @@ Take file: /tmp/artefacts-$(hostname).tgz & extract.log
 - Use script create_timeline.py for make timeline on relation between file - process - package - network - module kernel loaded - crontab - autorun
 - Use plaso on files: apache, systemd, syslog, dpkg, apt history, popularity contest on debian, wtmp, docker conf & log, selinux, vsftpd, webhist.
   - bash_history not parsed by plaso if you haven't defined HISTTIMEFORMAT
+  - apache error log not parsed by plaso
   
 ~~~
 $python3 create_timeline.py dir_artefac_extract/
