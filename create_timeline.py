@@ -1162,6 +1162,7 @@ def main():
                     jsonl['file_etc']=False
                 if 'configuration' in v and v['configuration']:
                     jsonl['file_cfg']=True
+                    jsonl['tag'].append('file_cfg')
                 else:
                     jsonl['file_cfg']=False
                 if 'docker_conf' in v and v['docker_conf']:
