@@ -94,10 +94,15 @@
 #ATTACH_TOOLS
 
 #use local web serveur to share https://security-tracker.debian.org/tracker/debsecan/release/1/GENERIC (else use base64 and command: debsecan --source=file://localhost/tmp/debsecan/
-if [[ -z "${URL_GENERIC}" ]]; then
-  URL_GENERIC=https://security-tracker.debian.org/tracker/debsecan/release/1/GENERIC
+if [ -f "/tmp/toolsEAL/tools/GENERIC" ]
+then
+  URL_GENERIC="file://localhost/tmp/toolsEAL/tools/GENERIC"
 else
-  URL_GENERIC="${URL_GENERIC}"
+  if [[ -z "${URL_GENERIC}" ]]; then
+    URL_GENERIC="https://security-tracker.debian.org/tracker/debsecan/release/1/GENERIC"
+  else
+    URL_GENERIC="${URL_GENERIC}"
+  fi
 fi
 #Identify OS
 #1==linux && 2==Aix
