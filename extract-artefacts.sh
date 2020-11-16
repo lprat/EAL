@@ -91,6 +91,7 @@
 #https://github.com/snovvcrash/usbrip
 #USE SIGMA knowledge: https://github.com/Neo23x0/sigma/tree/master/rules/linux
 
+#ATTACH_TOOLS
 
 #use local web serveur to share https://security-tracker.debian.org/tracker/debsecan/release/1/GENERIC (else use base64 and command: debsecan --source=file://localhost/tmp/debsecan/
 if [[ -z "${URL_GENERIC}" ]]; then
