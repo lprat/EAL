@@ -93,6 +93,38 @@
 
 #ATTACH_TOOLS
 
+#CONST CONF
+MEMORY=1
+MEM_PROC=1
+GET_WEBSITE=0
+YARA_EXTRACT_FILE=1
+YARA_MAXSIZE="10MB"
+YARA_PATHSCAN="/"
+YARA_RULES_MEM="/tmp/toolsEAL/tools/merged.yara"
+YARA_RULES_FS="/tmp/toolsEAL/tools/merged.yara"
+
+#Function from https://serverfault.com/questions/173999/dump-a-linux-processs-memory-to-file
+procdump() 
+( 
+    mkdir /tmp/artefacts/procs_mem_dump/
+    for i in $(ls /proc/);do 
+      if [[ $i =~ [0-9]+ ]]; then
+        mkdir /tmp/artefacts/procs_mem_dump/$i
+        cat /proc/$i/maps | grep "rw-p" | awk '{print $1}' | ( IFS="-"
+        while read a b; do
+          dd if=/proc/$i/mem bs=$( getconf PAGESIZE ) iflag=skip_bytes,count_bytes \
+             skip=$(( 0x$a )) count=$(( 0x$b - 0x$a )) of="/tmp/artefacts/procs_mem_dump/$i/$i_mem_$a.bin"
+        done )
+      fi
+    done
+)
+
+#Extract config
+if [ -f "/tmp/toolsEAL/tools/config.conf" ]
+then
+  #TODO check config file to change CONST
+fi
+
 #use local web serveur to share https://security-tracker.debian.org/tracker/debsecan/release/1/GENERIC (else use base64 and command: debsecan --source=file://localhost/tmp/debsecan/
 if [ -f "/tmp/toolsEAL/tools/GENERIC" ]
 then
@@ -121,6 +153,24 @@ if [ $OS == 1 ]; then free ;fi
 #if [ $OS == 1 ]; then ;fi
 #if [ $OS == 2 ]; then ;fi
 #use: https://github.com/kd8bny/LiMEaide for linux
+
+#extract memory or memory process
+if [ $OS == 1 ] && [ $MEMORY == 1 ] && [ -f "/tmp/toolsEAL/tools/avml-minimal" ]
+then
+  #use avml
+  chmod +x /tmp/toolsEAL/tools/avml-minimal
+  /tmp/toolsEAL/tools/avml-minimal --compress /tmp/artefacts/mem.raw.compressed
+  if [ $? -eq 0 ]
+  then
+    MEM_PROC=0
+    YARA_RULES_MEM="noexists.yar"
+  fi
+if [ $MEM_PROC == 1 ]
+then
+  #https://serverfault.com/questions/173999/dump-a-linux-processs-memory-to-file
+  procdump
+  YARA_PROC=0
+fi
 
 ##General info
 echo -e "#####Artefact AIX for forensic#####\nhost:" > /tmp/artefacts/general
@@ -1457,8 +1507,29 @@ find /var/lib \( -fstype nfs -prune \) -o -name '*.frm' -o -name 'ib_logfile*' -
 ##Disk image
 #create image disk: dd if=/dev/mapper/part-tmp of=tmp.raw
 
-
+#Yara scan
+if [ $OS == 1 ] && [ -f "/tmp/toolsEAL/tools/spyre_x64" ]
+  MACHINE_TYPE=`uname -m`
+  if [ ${MACHINE_TYPE} == 'x86_64' ]; then
+    /tmp/toolsEAL/tools/spyre_x64 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
+    #TODO extract file
+  else
+    /tmp/toolsEAL/tools/spyre_x86 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
+    #TODO extract file
+  fi
+then
 #clean
 if [ $OS == 1 ]; then tar zcvpf /tmp/artefacts-$(hostname).tgz /tmp/artefacts/;fi
 if [ $OS == 2 ]; then tar cpvf - /tmp/artefacts/ |gzip -c >/tmp/artefacts-$(hostname).tgz;fi
+#encrypt result
+if [ -x "$(which openssl)" ] && [ -f "/tmp/toolsEAL/tools/pub_key" ]
+then
+  openssl rsautl -in /tmp/artefacts-$(hostname).tgz -out /tmp/artefacts-$(hostname).tgz.enc -pubin -inkey /tmp/toolsEAL/tools/pub_key -encrypt
+  #decrypt: openssl rsautl -in /tmp/artefacts-$(hostname).tgz.enc -out /tmp/artefacts-$(hostname).tgz -inkey key.pem -decrypt
+  if [ $? -eq 0 ]
+  then
+    rm -f /tmp/artefacts-$(hostname).tgz 
+  fi
+fi
 rm -rf /tmp/artefacts/
+
