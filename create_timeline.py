@@ -740,10 +740,16 @@ def main():
                             stat_type[': '.join(rtmp[1:]).rstrip("\n\r").strip()]=stat_type[': '.join(rtmp[1:]).rstrip("\n\r").strip()]+1
                         else:
                             stat_type[': '.join(rtmp[1:]).rstrip("\n\r").strip()]=1
-                elif line.startswith(' ') or line[0].isdigit():
+                elif line.startswith(' ') or line[0].isdigit() or line.startswith('STAT:'):
                     #find result
                     #print("FIND: line {} contents {}".format(cnt, line))
-                    rtmp=line.split()
+                    rtmp=None
+                    vstat=False
+                    if line.startswith('STAT:'):
+                        rtmp=line[5:].split('|')
+                        vstat=True
+                    else:
+                        rtmp=line.split()
                     #md5sum
                     if rtmp and len(rtmp) == 2 and rtmp[1].startswith('/'):
                         #print("MD5SUM: line {} contents {}".format(cnt, line))
@@ -768,60 +774,78 @@ def main():
                                 for pid in proccksum[rtmp[0]+' '+rtmp[1]]:
                                     if pid in aixservices:
                                         files[rtmp[-1]]['service']=True
-                    #check if --time-style=long-iso (linux) or Date: (ls - aix)
+                    #check if --time-style=long-iso (linux) or Date: (ls - aix) or stat
                     elif rtmp and len(rtmp) > 8:
                         filetmp=''
-                        if '-' in rtmp[7]:
-                            filetmp=' '.join(rtmp[9:])
-                        else:
-                            if ',' in rtmp[6] and rtmp[8][0].isalpha():
-                                filetmp=' '.join(rtmp[11:])
-                            else:
-                                filetmp=' '.join(rtmp[10:])
                         filelink=''
-                        ftmp=filetmp.split(' -> ')
-                        if len(ftmp) == 2:
-                          filetmp=ftmp[0]
-                          current_file=filetmp
-                          filelink=ftmp[1]
+                        if vstat:
+                            filetmp=rtmp[13]
+                            if ' -> ' in rtmp[14]:
+                                filelink=rtmp[14].split(' -> ')[1][1:-1]
+                        else:
+                            if '-' in rtmp[7]:
+                                filetmp=' '.join(rtmp[9:])
+                            else:
+                                if ',' in rtmp[6] and rtmp[8][0].isalpha():
+                                    filetmp=' '.join(rtmp[11:])
+                                else:
+                                    filetmp=' '.join(rtmp[10:])
+                            ftmp=filetmp.split(' -> ')
+                            if len(ftmp) == 2:
+                                filetmp=ftmp[0]
+                                current_file=filetmp
+                                filelink=ftmp[1]
                         if filetmp in files:
-                            files[filetmp]['message']=line.rstrip("\n\r")
                             files[filetmp]['inode'] = rtmp[0]
                             files[filetmp]['blocksize'] = rtmp[1]
                             files[filetmp]['permissions'] = rtmp[2]
                             files[filetmp]['numberoflink'] = rtmp[3]
                             files[filetmp]['owner'] = rtmp[4]
                             files[filetmp]['group'] = rtmp[5]
-                            if not ',' in rtmp[6]:
+                            if vstat:
+                                files[filetmp]['message']=line[5:].rstrip("\n\r")
                                 files[filetmp]['size'] = rtmp[6]
-                                if '-' in rtmp[7]:
-                                    files[filetmp]['lastmodified'] = " ".join(rtmp[7:9])
-                                else:
-                                    files[filetmp]['lastmodified'] = " ".join(rtmp[7:10])
+                                files[filetmp]['device_major'] = rtmp[7]
+                                files[filetmp]['device_minor'] = rtmp[8]
+                                files[filetmp]['createdate'] = rtmp[9]
+                                files[filetmp]['lastaccess'] = rtmp[10]
+                                files[filetmp]['lastmodified'] = rtmp[11]
+                                files[filetmp]['lastchange'] = rtmp[12]
                             else:
-                                files[filetmp]['device_major'] = rtmp[6]
-                                files[filetmp]['device_minor'] = rtmp[7]
-                                if rtmp[8][0].isalpha():
-                                    files[filetmp]['lastmodified'] = " ".join(rtmp[8:11])
+                                files[filetmp]['message']=line.rstrip("\n\r")
+                                if not ',' in rtmp[6]:
+                                    files[filetmp]['size'] = rtmp[6]
+                                    if '-' in rtmp[7]:
+                                        files[filetmp]['lastmodified'] = " ".join(rtmp[7:9])
+                                    else:
+                                        files[filetmp]['lastmodified'] = " ".join(rtmp[7:10])
                                 else:
-                                    files[filetmp]['lastmodified'] = " ".join(rtmp[8:10])
+                                    files[filetmp]['device_major'] = rtmp[6]
+                                    files[filetmp]['device_minor'] = rtmp[7]
+                                    if rtmp[8][0].isalpha():
+                                        files[filetmp]['lastmodified'] = " ".join(rtmp[8:11])
+                                    else:
+                                        files[filetmp]['lastmodified'] = " ".join(rtmp[8:10])
                         else:
-                            files[filetmp] = {'message': line.rstrip("\n\r"), 'inode': rtmp[0], 'blocksize': rtmp[1], 'permissions': rtmp[2], 'numberoflink': rtmp[3], 'owner': rtmp[4], 'group': rtmp[5]}
-                            if not ',' in rtmp[6]:
-                                files[filetmp]['size'] = rtmp[6]
-                                if '-' in rtmp[7]:
-                                    files[filetmp]['lastmodified'] = " ".join(rtmp[7:9])
-                                else:
-                                    files[filetmp]['lastmodified'] = " ".join(rtmp[7:10])
+                            if vstat:
+                                files[filetmp] = {'message': line[5:].rstrip("\n\r"), 'inode': rtmp[0], 'blocksize': rtmp[1], 'permissions': rtmp[2], 'numberoflink': rtmp[3], 'owner': rtmp[4], 'group': rtmp[5], 'size': rtmp[6], 'device_major': rtmp[7], 'device_minor': rtmp[8],  'createdate': rtmp[9],  'lastaccess': rtmp[10],  'lastmodified': rtmp[11],  'lastchange': rtmp[12]}
                             else:
-                                files[filetmp]['device_major'] = rtmp[6]
-                                files[filetmp]['device_minor'] = rtmp[7]
-                                if rtmp[8][0].isalpha():
-                                    files[filetmp]['lastmodified'] = " ".join(rtmp[8:11])
+                                files[filetmp] = {'message': line.rstrip("\n\r"), 'inode': rtmp[0], 'blocksize': rtmp[1], 'permissions': rtmp[2], 'numberoflink': rtmp[3], 'owner': rtmp[4], 'group': rtmp[5]}
+                                if not ',' in rtmp[6]:
+                                    files[filetmp]['size'] = rtmp[6]
+                                    if '-' in rtmp[7]:
+                                        files[filetmp]['lastmodified'] = " ".join(rtmp[7:9])
+                                    else:
+                                        files[filetmp]['lastmodified'] = " ".join(rtmp[7:10])
                                 else:
-                                    files[filetmp]['lastmodified'] = " ".join(rtmp[8:10])
-                                #files[filetmp]['ext'] = extx #?? verif
-                        if files[filetmp]['lastmodified'][0].isalpha():
+                                    files[filetmp]['device_major'] = rtmp[6]
+                                    files[filetmp]['device_minor'] = rtmp[7]
+                                    if rtmp[8][0].isalpha():
+                                        files[filetmp]['lastmodified'] = " ".join(rtmp[8:11])
+                                    else:
+                                        files[filetmp]['lastmodified'] = " ".join(rtmp[8:10])
+                                    #files[filetmp]['ext'] = extx #?? verif
+                        if files[filetmp]['lastmodified'][0].isalpha() and not vstat:
                             if ':' in files[filetmp]['lastmodified']:
                                 tmpdx=files[filetmp]['lastmodified'].split()
                                 # j=01, f=02, mar=03 sinon ma=04, ju&l=07 sinon 06, a=08, s=09, o=10, n=11, d=12
@@ -1089,7 +1113,11 @@ def main():
                 if 'lastmodified' not in v:
                     print('Error to find file: '+str(k)+' ( '+str(v)+' )')
                     continue
-                date=datetime.strptime(v['lastmodified'], '%Y-%m-%d %H:%M')
+                date = None
+                if '+' in v['lastmodified']:
+                    date=datetime.strptime(v['lastmodified'][0:-9]+v['lastmodified'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
+                else:
+                    date=datetime.strptime(v['lastmodified'], '%Y-%m-%d %H:%M')
                 date2=date.strftime('%Y-%m-%dT%H:%M:%S')
                 jsonl={"message": v['message'], "parser": 'find', "timestamp": str(int(datetime.timestamp(date))), "datetime": date2, "timestamp_desc": "Metadata Modification Time", "data_type": "fs:stat", "host": hostname, "file_entry_type": v['type_file'], "file_group": v['group'], "file_perm": v['permissions'], "file_owner": v['owner'], "inode": v['inode'], "filename": k, "blocksize": v['blocksize'], "tag": []}
                 if 'ext' in v and v['ext']:
@@ -1304,6 +1332,33 @@ def main():
                 if not jsonl['tag']:
                   del jsonl['tag']
                 print("%s" % (json.dumps(jsonl)),file=fx)
+                if 'lastchange' in v and v['lastchange'] != '-':
+                    try:
+                        date=datetime.strptime(v['lastchange'][0:-9]+v['lastchange'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
+                    except:
+                        print("Error parse date on file: " + v['file_name'])
+                    jsonl['timestamp']=str(int(datetime.timestamp(date)))
+                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S')
+                    jsonl['timestamp_desc']="Metadata Change Time"
+                    print("%s" % (json.dumps(jsonl)),file=fx)
+                if 'lastaccess' in v and v['lastaccess'] != '-':
+                    try:
+                        date=datetime.strptime(v['lastaccess'][0:-9]+v['lastaccess'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
+                    except:
+                        print("Error parse date on file: " + v['file_name'])
+                    jsonl['timestamp']=str(int(datetime.timestamp(date)))
+                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S')
+                    jsonl['timestamp_desc']="Metadata Access Time"
+                    print("%s" % (json.dumps(jsonl)),file=fx)
+                if 'createdate' in v and v['createdate'] != '-':
+                    try:
+                        date=datetime.strptime(v['createdate'][0:-9]+v['createdate'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
+                    except:
+                        print("Error parse date on file: " + v['file_name'])
+                    jsonl['timestamp']=str(int(datetime.timestamp(date)))
+                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S')
+                    jsonl['timestamp_desc']="Metadata Create Time"
+                    print("%s" % (json.dumps(jsonl)),file=fx)
             fx.close()    
 
 if __name__ == '__main__':
