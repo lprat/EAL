@@ -336,7 +336,14 @@ if [ $OS == 1 ]; then for path in $(cat /tmp/artefacts/kernel_modules);do ls -l 
 if [ $OS == 2 ]; then for path in $(genkex|awk '{print $NF}');do ls -l $path >> /tmp/artefacts/kernel_modules_rw;done ;fi
 #sysctl
 if which sysctl;then sysctl -a > /tmp/artefacts/sysctl;fi
-
+#ssdt
+if which stat;then 
+  find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/ssdt
+else
+  find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=ctime {} \; > /tmp/artefacts/ssdt
+  find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=atime {} \; >> /tmp/artefacts/ssdt
+  find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time {} \; >> /tmp/artefacts/ssdt
+fi
 #/proc conf
 mkdir /tmp/artefacts/conf_sys/
 if [ -f  /proc/sys/kernel/randomize_va_space ]; then cp /proc/sys/kernel/randomize_va_space /tmp/artefacts/conf_sys/;fi
