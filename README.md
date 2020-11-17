@@ -41,9 +41,10 @@ This tool written in bash for extract artefacts, and python(v3) for create timel
   - make relation with files (1)
 - kernel 
   - modules list
-  - sysctl 
+  - sysctl
+  - /proc/sys artefacts
 - files (1)
-  - ls
+  - stat or ls
   - type (cmd file)
 - Packages
   - integrity
