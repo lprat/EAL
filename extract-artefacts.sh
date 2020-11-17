@@ -102,6 +102,8 @@ YARA_MAXSIZE="10MB"
 YARA_PATHSCAN="/"
 YARA_RULES_MEM="/tmp/toolsEAL/tools/merged.yara"
 YARA_RULES_FS="/tmp/toolsEAL/tools/merged.yara"
+#extract static linked file - max size file
+STATIC_MAXSIZE=5
 
 #Function to find date creation from http://moiseevigor.github.io/software/2015/01/30/get-file-creation-time-on-linux-with-ext4/
 xstat() {
@@ -184,12 +186,61 @@ then
   YARA_PROC=0
 fi
 
+#modified original ent code for print same of script ent.pl
+#cross compiled (used:https://github.com/dockcross/dockcross) in static
+#ref: http://www.fourmilab.ch/random/
+#if [ $OS == 1 ]; then if which base64;then cat /tmp/ent32_b64|base64 -d>/tmp/ent32;chmod +x /tmp/ent32;else if which openssl;then openssl base64 -d < /tmp/ent32_b64 /tmp/ent32;chmod +x /tmp/ent32;fi;fi;fi
+#change ignore par \( -fstype nfs -prune \) -o
+#ent & md5sum is very slow -- remove 
+#if [ $OS == 1 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + -type f -exec /tmp/ent32 -t {} + -type f -exec file {} + -type f -exec md5sum {} + > /tmp/artefacts/all_files ;fi
+TESTSTAT=$(stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' /)
+if [ $OS == 1 ];then 
+  if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
+    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} + -type f -exec file {} + > /tmp/artefacts/all_files 
+  else
+    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + -type f -exec file {} + > /tmp/artefacts/all_files 
+  fi
+fi
+#stat -c '%i,%b,%A,%h,%U,%G,%s,%t,%T,%w,%x,%y%z,%n,%N'
+# ls -dils --time=ctime & ls -dils --time=atime & ls -dils => pb identify time value according by ctime,atime,mtime
+#linux
+#find / -path /mnt -prune -o -type f -exec stat --printf="%n: %w|%x|%y|%z\n" {} \; > find_all_stat
+#aix
+#find / -path /mnt -prune -o -type f -exec istat {} \; > /tmp/artefacts/all_files_type
+#besoin pour processus
+#not found possibility to cross compile for aix
+#if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -ls -type f -exec perl /tmp/ent.pl {} \; -type f -exec file {} \; -type f -exec md5sum {} \; -type f -exec cksum {} \; > /tmp/artefacts/all_files;fi
+#ent is very slow -- remove 
+#if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -ls -exec perl -e '@d=localtime ((stat(shift))[9]); printf "Date: %02d-%02d-%04d %02d:%02d:%02d\n", $d[3],$d[4]+1,$d[5]+1900,$d[2],$d[1],$d[0]' {} \; -type f -exec perl /tmp/ent.pl {} \; -type f -exec file {} \; -type f -exec md5sum {} \; -type f -exec cksum {} \; > /tmp/artefacts/all_files;fi
+if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -type f -exec file {} + > /tmp/artefacts/all_files_file;fi
+if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -ls > /tmp/artefacts/all_files;fi
+#rm /tmp/ent.pl
+#if [ $OS == 1 ];then rm /tmp/ent32 ;fi
+#rm /tmp/ent32_b64
+
+##tomcat extract pass
+if grep 'tomcat-users.xml\:' /tmp/artefacts/all_files >/dev/null;then grep 'tomcat-users.xml\:' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g' | tar -zcvpf /tmp/artefacts/tomcat-passwd.tar.gz --files-from -;fi
+##static file extract, extract max 5mo
+for i in $(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g'); do
+  size=$(du -m "$i" | cut -f 1)
+  if [ $size -le $STATIC_MAXSIZE ]; then
+    tar vuf /tmp/artefacts/static_file.tar $i
+  fi
+  if [ ! -x "$(which md5sum)" ]; then
+    md5sum $i >> /tmp/artefacts/static_file_hash
+  fi
+done
+gzip /tmp/artefacts/static_file.tar
+
 ##General info
-echo -e "#####Artefact AIX for forensic#####\nhost:" > /tmp/artefacts/general
+echo -e "#####Artefact for forensic#####\nhost:" > /tmp/artefacts/general
 hostname >> /tmp/artefacts/general
 ##Uptime
 echo -e "\nUptime:\n-------" >> /tmp/artefacts/general
 uptime >> /tmp/artefacts/general
+##Uname
+echo -e "\nUname:\n-------" >> /tmp/artefacts/general
+uname -a >> /tmp/artefacts/general
 ##Userlist
 echo -e "-------\nusers:\n-------" >> /tmp/artefacts/general
 cat /etc/passwd >> /tmp/artefacts/general
@@ -253,7 +304,7 @@ if [ $OS == 2 ]; then tar cpvf  - /etc/| gzip -c >/tmp/artefacts/etc.tgz;fi
 if [ $OS == 1 ]; then tar zcpvf /tmp/artefacts/varlog.tgz /var/log/;fi
 if [ $OS == 2 ]; then tar cpvf  - /var/log/| gzip -c >/tmp/artefacts/varlog.tgz;fi
 if [ $OS == 1 ]; then tar zcpvf /tmp/artefacts/runlog.tgz /run/log/;fi
-if [ $OS == 1 ]; then find / -path /run/log -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o -name '*.log' -o -name '*.log.*' |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
+if [ $OS == 1 ]; then find / -path /run/log -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o -name '*.log' -o -name '*.log.*' -o -name 'catalina.out' -o -name |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
 #su stat user (count, last, first) => plaso
 #sudo stat user (count, last, first) => plaso
 
@@ -337,7 +388,7 @@ if [ $OS == 2 ]; then for path in $(genkex|awk '{print $NF}');do ls -l $path >> 
 #sysctl
 if which sysctl;then sysctl -a > /tmp/artefacts/sysctl;fi
 #ssdt
-if which stat;then 
+if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
   find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/ssdt
 else
   find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=ctime {} \; > /tmp/artefacts/ssdt
@@ -361,7 +412,19 @@ if [ -f  /proc/sys/kernel/dmesg_restrict ]; then cp /proc/sys/kernel/dmesg_restr
 if [ -f  /proc/sys/kernel/kptr_restrict ]; then cp /proc/sys/kernel/kptr_restrict /tmp/artefacts/conf_sys/;fi
 if [ -f  /proc/sys/fs/suid_dumpable ]; then cp /proc/sys/fs/suid_dumpable /tmp/artefacts/conf_sys/;fi
 if [ -f  /proc/sys/net/ipv4/tcp_syncookies ]; then cp /proc/sys/net/ipv4/tcp_syncookies /tmp/artefacts/conf_sys/;fi
-
+if [ -f  /sys/kernel/security/lsm ]; then cat /sys/kernel/security/lsm > /tmp/artefacts/security-lsm;fi
+##apparmor
+if which aa-status;then
+  aa-status > /tmp/artefacts/aa-status
+fi
+##selinux
+if which sestatus;then
+  sestatus > /tmp/artefacts/sestatus
+fi
+##tomoyo
+if which tomoyo-savepolicy;then
+  tomoyo-savepolicy -d > /tmp/artefacts/tomoyo-policy
+fi
 ##Sgid & suid & unknown group or user & system writable
 #ignore find
 #IGNORE_FIND=""
@@ -390,7 +453,7 @@ if [ -f  /proc/sys/net/ipv4/tcp_syncookies ]; then cp /proc/sys/net/ipv4/tcp_syn
 #identifier les fichiers qui contienne des secrets (clé rsa, shadow , ...) avec un accès en lecture pour tout le monde ou le groupe
 
 ##Files (trouver une idée pour identifier de potentiel webshell...)
-#!dont find distance shared file (nfs)
+# !dont find distance shared file (nfs)
 #find / -path /tmp/artefacts -prune -o $IGNORE_FIND -ls > /tmp/artefacts/all_files
 #find / -path /tmp/artefacts -prune -o $IGNORE_FIND -type f -exec md5sum {} \; > /tmp/artefacts/all_files_md5
 #find / -path /tmp/artefacts -prune -o $IGNORE_FIND -type f -exec file {} \; > /tmp/artefacts/all_files_type
@@ -425,37 +488,6 @@ sub file_entropy {
 my \$ent=file_entropy(\$ARGV[0]);
 print  "'\$ARGV[0]':'\$ent'\n";
 EOF
-
-#modified original ent code for print same of script ent.pl
-#cross compiled (used:https://github.com/dockcross/dockcross) in static
-#ref: http://www.fourmilab.ch/random/
-#if [ $OS == 1 ]; then if which base64;then cat /tmp/ent32_b64|base64 -d>/tmp/ent32;chmod +x /tmp/ent32;else if which openssl;then openssl base64 -d < /tmp/ent32_b64 /tmp/ent32;chmod +x /tmp/ent32;fi;fi;fi
-#change ignore par \( -fstype nfs -prune \) -o
-#ent & md5sum is very slow -- remove 
-#if [ $OS == 1 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + -type f -exec /tmp/ent32 -t {} + -type f -exec file {} + -type f -exec md5sum {} + > /tmp/artefacts/all_files ;fi
-if [ $OS == 1 ];then 
-  if [ ! -x "$(which stat)" ]; then
-    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} + -type f -exec file {} + > /tmp/artefacts/all_files 
-  else
-    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + -type f -exec file {} + > /tmp/artefacts/all_files 
-  fi
-fi
-#stat -c '%i,%b,%A,%h,%U,%G,%s,%t,%T,%w,%x,%y%z,%n,%N'
-# ls -dils --time=ctime & ls -dils --time=atime & ls -dils => pb identify time value according by ctime,atime,mtime
-#linux
-#find / -path /mnt -prune -o -type f -exec stat --printf="%n: %w|%x|%y|%z\n" {} \; > find_all_stat
-#aix
-#find / -path /mnt -prune -o -type f -exec istat {} \; > /tmp/artefacts/all_files_type
-#besoin pour processus
-#not found possibility to cross compile for aix
-#if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -ls -type f -exec perl /tmp/ent.pl {} \; -type f -exec file {} \; -type f -exec md5sum {} \; -type f -exec cksum {} \; > /tmp/artefacts/all_files;fi
-#ent is very slow -- remove 
-#if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -ls -exec perl -e '@d=localtime ((stat(shift))[9]); printf "Date: %02d-%02d-%04d %02d:%02d:%02d\n", $d[3],$d[4]+1,$d[5]+1900,$d[2],$d[1],$d[0]' {} \; -type f -exec perl /tmp/ent.pl {} \; -type f -exec file {} \; -type f -exec md5sum {} \; -type f -exec cksum {} \; > /tmp/artefacts/all_files;fi
-if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -type f -exec file {} + > /tmp/artefacts/all_files_file;fi
-if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -ls > /tmp/artefacts/all_files;fi
-#rm /tmp/ent.pl
-#if [ $OS == 1 ];then rm /tmp/ent32 ;fi
-#rm /tmp/ent32_b64
 
 ##package (ref: http://gedsismik.free.fr/darkdoc/article.php?id=64)
 #list
@@ -517,8 +549,28 @@ if which xsel; then for user in $(cat /etc/passwd | cut -f1 -d: ); do echo clipb
 #Memoire & Mount
 df > /tmp/artefacts/disk_df
 mount > /tmp/artefacts/disk_mount
-for path in $(mount|grep -i tmpfs|grep -v ',noexec,'|awk '{out=""; for(i=0;i<=NF;i++){out=out"\n"$i}; print out}'|grep '\/'|grep -v 'tmpfs'|grep -vE '/dev$'); do ls -laR $path > /tmp/artefacts/files_in_tmpfs; done
-
+for path in $(mount|grep -i tmpfs|grep -v ',noexec,'|awk '{out=""; for(i=0;i<=NF;i++){out=out"\n"$i}; print out}'|grep '\/'|grep -v 'tmpfs'|grep -vE '/dev$'); do 
+  if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
+    find $path -type f -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/files_in_tmpfs
+  else
+    ls -laR --full-time --time=ctime $path > /tmp/artefacts/files_in_tmpfs
+    ls -laR --full-time --time=atime $path >> /tmp/artefacts/files_in_tmpfs
+    ls -laR --full-time $path >> /tmp/artefacts/files_in_tmpfs
+  fi
+done
+if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
+    find /dev -type f -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/files_in_dev
+    if which md5sum;then
+      find /dev -type f -exec md5sum {} \; >> /tmp/artefacts/files_in_dev
+    fi
+else
+    find /dev -type f -exec ls -dits --full-time --time=ctime {} \; >> /tmp/artefacts/files_in_dev
+    find /dev -type f -exec ls -dits --full-time --time=atime {} \; >> /tmp/artefacts/files_in_dev
+    find /dev -type f -exec ls -dits --full-time {} \; >> /tmp/artefacts/files_in_dev
+    if which md5sum;then
+      find /dev -type f -exec md5sum {} \; >> /tmp/artefacts/files_in_dev
+    fi
+fi
 ##CRONTAB
 #Linux
 if [ $OS == 1 ]; then for user in $(cat /etc/passwd | cut -f1 -d: ); do echo Crontab user: $user; crontab -l -u $user|grep -vE '^#'; done > /tmp/artefacts/crontab ;fi
