@@ -110,6 +110,7 @@ procdump()
     for i in $(ls /proc/);do 
       if [[ $i =~ [0-9]+ ]]; then
         mkdir /tmp/artefacts/procs_mem_dump/$i
+        cp /proc/$i/maps /tmp/artefacts/procs_mem_dump/$i/
         cat /proc/$i/maps | grep "rw-p" | awk '{print $1}' | ( IFS="-"
         while read a b; do
           dd if=/proc/$i/mem bs=$( getconf PAGESIZE ) iflag=skip_bytes,count_bytes \
@@ -308,6 +309,24 @@ if [ $OS == 1 ]; then for path in $(cat /tmp/artefacts/kernel_modules);do ls -l 
 if [ $OS == 2 ]; then for path in $(genkex|awk '{print $NF}');do ls -l $path >> /tmp/artefacts/kernel_modules_rw;done ;fi
 #sysctl
 if which sysctl;then sysctl -a > /tmp/artefacts/sysctl;fi
+
+#/proc conf
+mkdir /tmp/artefacts/conf_sys/
+if [ -f  /proc/sys/kernel/randomize_va_space ]; then cp /proc/sys/kernel/randomize_va_space /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ]; then cp /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/kernel/bootloader_type ]; then cp /proc/sys/kernel/bootloader_type /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/kernel/bootloader_version ]; then cp /proc/sys/kernel/bootloader_version /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/kernel/kexec_load_disabled ]; then cp /proc/sys/kernel/kexec_load_disabled /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/kernel/modules_disabled ]; then cp /proc/sys/kernel/modules_disabled /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/kernel/tainted ]; then cp /proc/sys/kernel/tainted /tmp/artefacts/conf_sys/;fi
+find /proc/sys/net/ipv4/ -name 'ip_forward' -o -name 'mc_forwarding' -o -name 'rp_filter' -o -name 'log_martians' -o -name 'accept_redirects' -o -name 'secure_redirects' -o -name 'send_redirects'|tar -zcpvf /tmp/artefacts/conf_sys/net_ipv4.tar.gz --files-from -
+find /proc/sys/net/ -name 'forwarding' -o -name 'accept_source_route'|tar -zcpvf /tmp/artefacts/conf_sys/net_ip.tar.gz --files-from -
+if [ -f  /proc/net/arp ]; then cp /proc/net/arp /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/mounts ]; then cp /proc/mounts /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/kernel/dmesg_restrict ]; then cp /proc/sys/kernel/dmesg_restrict /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/kernel/kptr_restrict ]; then cp /proc/sys/kernel/kptr_restrict /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/fs/suid_dumpable ]; then cp /proc/sys/fs/suid_dumpable /tmp/artefacts/conf_sys/;fi
+if [ -f  /proc/sys/net/ipv4/tcp_syncookies ]; then cp /proc/sys/net/ipv4/tcp_syncookies /tmp/artefacts/conf_sys/;fi
 
 ##Sgid & suid & unknown group or user & system writable
 #ignore find
