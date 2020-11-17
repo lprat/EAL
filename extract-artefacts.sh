@@ -103,6 +103,17 @@ YARA_PATHSCAN="/"
 YARA_RULES_MEM="/tmp/toolsEAL/tools/merged.yara"
 YARA_RULES_FS="/tmp/toolsEAL/tools/merged.yara"
 
+#Function to find date creation from http://moiseevigor.github.io/software/2015/01/30/get-file-creation-time-on-linux-with-ext4/
+xstat() {
+  for target in "${@}"; do
+    inode=$(ls -di "${target}" | cut -d ' ' -f 1)
+    fs=$(df "${target}"  | tail -1 | awk '{print $1}')
+    crtime=$(debugfs -R 'stat <'"${inode}"'>' "${fs}" 2>/dev/null | 
+    grep -oP 'crtime.*--\s*\K.*')
+    printf "%s\t%s\n" "${crtime}" "${target}"
+  done
+}
+
 #Function from https://serverfault.com/questions/173999/dump-a-linux-processs-memory-to-file
 procdump() 
 ( 
@@ -195,8 +206,9 @@ cat /etc/hosts >> /tmp/artefacts/general
 #extract .*history* (identify command à risque ou passwd oublié...)
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/home_history.tar $homeuser/.*history*;done
 gzip /tmp/artefacts/home_history.tar
-#extract .ssh/known_hosts files
+#extract .ssh/known_hosts and authorized_keys files 
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/home_known_hosts.tar $homeuser/.ssh/known_hosts files;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/home_known_hosts.tar $homeuser/.ssh/authorized_keys files;done
 gzip /tmp/artefacts/home_known_hosts.tar
 echo -e "#####Artefact Home Hidden File#####\n" > /tmp/artefacts/home_hidden
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do ls -laR $homeuser/.[^.]* >> /tmp/artefacts/home_hidden;done
@@ -205,13 +217,28 @@ for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do ls -laR $homeuser
 #browser & cache
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/cache_home.tar $homeuser/.cache;done
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/cache_home.tar $homeuser/.mozilla;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/cache_home.tar $homeuser/.java/deployment/cache/;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/cache_home.tar $homeuser/.dropbox/*.db*;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/cache_home.tar $homeuser/.npm/;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/cache_home.tar $homeuser/.recently-used*;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/cache_home.tar $homeuser/.wget-hsts;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/cache_home.tar $homeuser/.local/share/zeitgeist/activity.sqlite;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/cache_home.tar $homeuser/.local/share/zeitgeist/activity.sqlite-wal;done
 gzip /tmp/artefacts/cache_home.tar
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.bashrc;done
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.bash_profile;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.bash_logout;done
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.profile;done
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.cshrc;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.ksh;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.tcsh;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.zlogin;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.zlogout;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.zprofile;done
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.logout;done
 for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.login;done
+for homeuser in $(awk -F ':' '{print $(NF-1)}' /etc/passwd);do tar vuf /tmp/artefacts/bash_home.tar $homeuser/.k5login;done
+
 gzip /tmp/artefacts/bash_home.tar
 
 ##Extract /etc: sudoers (voir si timestamp_timeout => https://attack.mitre.org/techniques/T1206/), su, conf services, docker, passwd (new account? date d'edition... log?) ...
@@ -399,10 +426,15 @@ EOF
 #change ignore par \( -fstype nfs -prune \) -o
 #ent & md5sum is very slow -- remove 
 #if [ $OS == 1 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + -type f -exec /tmp/ent32 -t {} + -type f -exec file {} + -type f -exec md5sum {} + > /tmp/artefacts/all_files ;fi
-if [ $OS == 1 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + -type f -exec file {} + > /tmp/artefacts/all_files ;fi
-#besoin de rajouter de la recherche d'entropy sur les fichiers textes? faire des test sur des exploit avec shellcode ou webshell..
-#stat date de création du fichier|date du dernier accès|date de la dernière modification de données|date du dernier changement d’état
-#besoin stat?
+if [ $OS == 1 ];then 
+  if [ ! -x "$(which stat)" ]; then
+    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} + -type f -exec file {} + > /tmp/artefacts/all_files 
+  else
+    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + -type f -exec file {} + > /tmp/artefacts/all_files 
+  fi
+fi
+#stat -c '%i,%b,%A,%h,%U,%G,%s,%t,%T,%w,%x,%y%z,%n,%N'
+# ls -dils --time=ctime & ls -dils --time=atime & ls -dils => pb identify time value according by ctime,atime,mtime
 #linux
 #find / -path /mnt -prune -o -type f -exec stat --printf="%n: %w|%x|%y|%z\n" {} \; > find_all_stat
 #aix
@@ -448,8 +480,10 @@ if [ $OS == 1 ]; then ls -laR /etc/init.d/ >> /tmp/artefacts/services_init;fi
 #if [ $OS == 1 ];then if which dpkg; then for path in $(ls -l /etc/init.d/|awk '{print $NF}');do dpkg -S $path;done;fi;fi > /tmp/artefacts/services_init-package_deb
 #if [ $OS == 1 ];then if which rpm; then for path in $(ls -l /etc/init.d/|awk '{print $NF}');do rpm -qf $path;done;fi;fi > /tmp/artefacts/services_init-package_rpm
 if [ $OS == 1 ]; then ls -laR /etc/systemd/ >> /tmp/artefacts/services_systemd;fi
+if [ $OS == 1 ]; then systemctl list-units --type=service > /tmp/artefacts/services_systemd_list;fi
+if [ $OS == 1 ]; then ls -laR /run/systemd >> /tmp/artefacts/services_systemd_runtime;fi
 #check contains variable: ExecStart, ExecStop, ExecReload (path exist and from package)
-for path in $(grep -iER 'ExecStart=|ExecReload=|ExecStop=' /etc/systemd|grep -vE '^#'|awk -F '=' '{print $2}'|awk '{print $1}');do echo check $path;done >/tmp/artefacts/service-systemd
+for path in $(grep -iER 'ExecStart=|ExecReload=|ExecStop=' /etc/systemd |grep -vE '^#'|awk -F '=' '{print $2}'|awk '{print $1}');do echo check $path;done >/tmp/artefacts/service-systemd
 if [ $OS == 1 ]; then ls -la /etc/rc.local >> /tmp/artefacts/services_rclocal;fi
 grep -iER '(^|\s+)DAEMON\=|(^|\s+)NAME\=|(^|\s+)COMMAND\=|(^|\S+)[A-Z][A-Z0-9]*_BIN\=' /etc/init.d/ > /tmp/artefacts/services-initd_exe
 
