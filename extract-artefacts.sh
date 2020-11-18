@@ -103,7 +103,7 @@ YARA_PATHSCAN="/"
 YARA_RULES_MEM="/tmp/toolsEAL/tools/merged.yara"
 YARA_RULES_FS="/tmp/toolsEAL/tools/merged.yara"
 #extract static linked file - max size file
-STATIC_MAXSIZE=5
+EXTRACT_MAXSIZE=5
 
 #Function to find date creation from http://moiseevigor.github.io/software/2015/01/30/get-file-creation-time-on-linux-with-ext4/
 xstat() {
@@ -220,17 +220,6 @@ if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune
 
 ##tomcat extract pass
 if grep 'tomcat-users.xml\:' /tmp/artefacts/all_files >/dev/null;then grep 'tomcat-users.xml\:' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g' | tar -zcvpf /tmp/artefacts/tomcat-passwd.tar.gz --files-from -;fi
-##static file extract, extract max 5mo
-for i in $(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g'); do
-  size=$(du -m "$i" | cut -f 1)
-  if [ $size -le $STATIC_MAXSIZE ]; then
-    tar vuf /tmp/artefacts/static_file.tar $i
-  fi
-  if [ ! -x "$(which md5sum)" ]; then
-    md5sum $i >> /tmp/artefacts/static_file_hash
-  fi
-done
-gzip /tmp/artefacts/static_file.tar
 
 ##General info
 echo -e "#####Artefact for forensic#####\nhost:" > /tmp/artefacts/general
@@ -506,7 +495,97 @@ if [ $OS == 2 ];then if which lslpp; then lslpp -L all|grep -E '^  [0-9A-Za-z]'|
 #Rpm: rpm -qf path
 #dpkg: dpkg -S path
 #aix: lslpp -w
+#extract proc network whithout package
+if [ $OS == 1 ]
+then
+  for path in $(for pid in $(lsof -niTCP -niUDP | awk '{print $2}'|sort -u|grep -v 'PID');do ls -l /proc/$pid/exe|awk -F ' -> ' '{print $2}';done);do
+    KEEPP=1
+    if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_deb-list_files > /dev/null
+    then
+      KEEPP=0
+    fi
+    if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_rpm-list_files > /dev/null
+    then
+      KEEPP=0
+    fi
+    if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-deb > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-rpm > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ $KEEPP == 1 ]
+    then
+      size=$(du -m "${path}" | cut -f 1)
+      if [ $size -le $EXTRACT_MAXSIZE ]; then
+        tar vuf /tmp/artefacts/proc_network_file.tar $path
+      fi
+      if [ ! -x "$(which md5sum)" ]; then
+        md5sum $path >> /tmp/artefacts/proc_network_file_hash
+      fi
+    fi
+  done
+  gzip /tmp/artefacts/proc_network_file.tar
+fi
+##static file extract, extract max 5mo
+for i in $(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g'); do
+  KEEPP=1
+  if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_deb-list_files > /dev/null
+  then
+    KEEPP=0
+  fi
+  if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_rpm-list_files > /dev/null
+  then
+    KEEPP=0
+  fi
+  if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-deb > /dev/null
+  then
+    KEEPP=1
+  fi
+  if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-rpm > /dev/null
+  then
+    KEEPP=1
+  fi
+  if [ $KEEPP == 1 ]
+  then
+    size=$(du -m "${i}" | cut -f 1)
+    if [ $size -le $EXTRACT_MAXSIZE ]; then
+      tar vuf /tmp/artefacts/static_file.tar $i
+    fi
+    if [ ! -x "$(which md5sum)" ]; then
+      md5sum $i >> /tmp/artefacts/static_file_hash
+    fi
+done
+gzip /tmp/artefacts/static_file.tar
 
+#extract binary integrity package broken
+if [ -f "/tmp/artefacts/packages-integrity-deb" ]
+then
+  for path in $(for i in $(awk '{print $NF}' /tmp/artefacts/packages-integrity-deb);do file $i|grep 'ELF ';done); do
+    size=$(du -m "${path}" | cut -f 1)
+    if [ $size -le $EXTRACT_MAXSIZE ]; then
+      tar vuf /tmp/artefacts/bin_package_suspect.tar $path
+    fi
+    if [ ! -x "$(which md5sum)" ]; then
+      md5sum $path >> /tmp/artefacts/bin_package_suspect_hash
+    fi
+  done
+fi
+if [ -f "/tmp/artefacts/packages-integrity-rpm" ]
+then
+  for path in $(for i in $(awk '{print $NF}' /tmp/artefacts/packages-integrity-rpm);do file $i|grep 'ELF ';done); do
+    size=$(du -m "${path}" | cut -f 1)
+    if [ $size -le $EXTRACT_MAXSIZE ]; then
+      tar vuf /tmp/artefacts/bin_package_suspect.tar $path
+    fi
+    if [ ! -x "$(which md5sum)" ]; then
+      md5sum $path >> /tmp/artefacts/bin_package_suspect_hash
+    fi
+  done
+fi
+gzip /tmp/artefacts/bin_package_suspect.tar
 
 ##Extract systemd, rc.local, init.d
 #list service & verify path of execute (date & path standard)
@@ -1621,6 +1700,7 @@ find /var/lib \( -fstype nfs -prune \) -o -name '*.frm' -o -name 'ib_logfile*' -
 
 #Yara scan
 if [ $OS == 1 ] && [ -f "/tmp/toolsEAL/tools/spyre_x64" ]
+then
   MACHINE_TYPE=`uname -m`
   if [ ${MACHINE_TYPE} == 'x86_64' ]; then
     /tmp/toolsEAL/tools/spyre_x64 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
@@ -1629,7 +1709,40 @@ if [ $OS == 1 ] && [ -f "/tmp/toolsEAL/tools/spyre_x64" ]
     /tmp/toolsEAL/tools/spyre_x86 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
     #TODO extract file
   fi
+fi
+if [ -f "/tmp/artefacts/yara_check.log" ]
 then
+  for path in $(grep 'YARA rule match' log.json |awk -F 'yara: ' '{print $2}'|awk -F ': ' '{print $1}'); do
+    KEEPP=1
+    if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_deb-list_files > /dev/null
+    then
+      KEEPP=0
+    fi
+    if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_rpm-list_files > /dev/null
+    then
+      KEEPP=0
+    fi
+    if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-deb > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-rpm > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ $KEEPP == 1 ]
+    then
+      size=$(du -m "${path}" | cut -f 1)
+      if [ $size -le $EXTRACT_MAXSIZE ]; then
+        tar vuf /tmp/artefacts/yara_file.tar $path
+      fi
+      if [ ! -x "$(which md5sum)" ]; then
+        md5sum $path >> /tmp/artefacts/yara_file_hash
+      fi
+    fi
+  done
+fi
+gzip /tmp/artefacts/yara_file.tar
 #clean
 if [ $OS == 1 ]; then tar zcvpf /tmp/artefacts-$(hostname).tgz /tmp/artefacts/;fi
 if [ $OS == 2 ]; then tar cpvf - /tmp/artefacts/ |gzip -c >/tmp/artefacts-$(hostname).tgz;fi
