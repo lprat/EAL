@@ -87,6 +87,10 @@ cd /tmp
 ## get EAL
 git clone https://github.com/lprat/EAL
 cp EAL/extract-artefacts.sh .
+if [ $YARA_BASE == 1 ]
+then
+  mv EAL/yara_rules ./yararules
+fi
 rm -rf EAL
 
 ## change dir
@@ -108,68 +112,30 @@ cp spyre/_build/i386-linux-musl/spyre spyre_x86
 rm -rf spyre/
 
 ## Download yara Linux Yara rules
-mkdir yararules
 #community rules (find new: https://github.com/InQuest/awesome-yara)
-if [ $YARA_BASE == 1 ]
-then
-cd yararules
-git clone https://github.com/Neo23x0/signature-base
-find signature-base/ -iname '*linux*.yar'  -exec cp {} ./ \;
-rm -rf signature-base
-git clone https://github.com/reversinglabs/reversinglabs-yara-rules
-find reversinglabs-yara-rules/ -iname '*linux*.yara'  -exec cp {} ./ \;
-rm -rf reversinglabs-yara-rules
-git clone https://github.com/Yara-Rules/rules/
-cp rules/webshells/*.yar .
-rm -rf rules
-git clone https://github.com/gabrielbouzard/yara-linux-malware
-cp yara-linux-malware/*.rule .
-for file in *.rule; do
-    mv "$file" "$(basename  -s .rule "$file").yar"
-done
-rm -rf yara-linux-malware
-git clone https://github.com/airbnb/binaryalert
-cp binaryalert/rules/public/hacktool/multi/*.yara .
-cp binaryalert/rules/public/malware/multi/*.yara .
-cp binaryalert/rules/public/ransomware/multi/*.yara .
-cp binaryalert/rules/public/hacktool/linux/*.yara .
-cp binaryalert/rules/public/malware/linux/*.yara .
-cp binaryalert/rules/public/ransomware/linux/*.yara .
-rm -rf binaryalert
-git clone https://github.com/Hestat/lw-yara
-cp lw-yara/includes/*.yar .
-rm -rf lw-yara
-git clone https://github.com/tenable/yara-rules
-cp yara-rules/webshells/*.yar .
-rm -rf yara-rules
-wget https://raw.githubusercontent.com/tenable/yara-rules/master/malware/venom.yar -O venom.yar
-wget https://github.com/tenable/yara-rules/blob/master/generic/elf_format.yar -O elf_format.yar
-#wget https://raw.githubusercontent.com/jvoisin/php-malware-finder/master/php-malware-finder/php.yar -O php.yar
-cd ..
-fi
 if [[ $YARA_URL == "http"* ]]; then
-wget $YARA_URL -O yararules/custom.yar
+  wget $YARA_URL -O yararules/custom.yar
 fi
 if [[ $YARA_URLGIT == "http"* ]]; then
-git clone $YARA_URLGIT yararules/yaragit
-#cp yara rules in parent dir
-cd yararules
-find yaragit/ -iname '*.yar*'  -exec cp {} ./ \;
-rm -rf yaragit
-cd ../
+  git clone $YARA_URLGIT yararules/yaragit
+  #cp yara rules in parent dir
+  cd yararules
+  find yaragit/ -iname '*.yar*'  -exec cp {} ./ \;
+  rm -rf yaragit
+  cd ../
 fi
 if [ -d "$YARA_PATH" ]; then
-#get file
-cp -r $YARA_PATH yararules/yarapath
-#cp yara rules in parent dir
-cd yararules
-find yarapath/ -iname '*.yar*'  -exec cp {} ./ \;
-rm -rf yarapath/
-cd ../
+  #get file
+  cp -r $YARA_PATH yararules/yarapath
+  #cp yara rules in parent dir
+  cd yararules
+  find yarapath/ -iname '*.yar*'  -exec cp {} ./ \;
+  rm -rf yarapath/
+  cd ../
 fi
 if [ -f "$YARA_PATH" ]; then
-#get file
-cp $YARA_PATH yararules/
+  #get file
+  cp $YARA_PATH yararules/
 fi
 #check yararules with yarac
 python3 /opt/merge_yararules.py yararules/
