@@ -1712,7 +1712,7 @@ then
 fi
 if [ -f "/tmp/artefacts/yara_check.log" ]
 then
-  for path in $(grep 'YARA rule match' log.json |awk -F 'yara: ' '{print $2}'|awk -F ': ' '{print $1}'); do
+  for path in $(grep 'YARA rule match' log.json |awk -F 'yara: ' '{print $2}'|awk -F ': ' '{print $1}'|sort -u); do
     KEEPP=1
     if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_deb-list_files > /dev/null
     then
