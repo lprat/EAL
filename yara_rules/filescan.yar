@@ -136,7 +136,7 @@ private rule strsuspectfile
         $ = "LLMNR" nocase ascii wide /* suspect command use responder */
         $ = "LD_PRELOAD" nocase ascii wide /* hijack proc */
         $ = "_ZNSaIcEaSERKS_" nocase ascii wide /* metasploit */
-        $ = "content-type: " nocase ascii wide /* Potential make header HTTP */
+        //$ = "content-type: " nocase ascii wide /* Potential make header HTTP  - more false positive */ 
         $ = "smbexec" nocase ascii wide /* suspect command use */
         $ = /\!ENTITY [^>]{1,64} SYSTEM/ nocase ascii wide /* potential XXE */
         $ = /GCC: \([\^)]{1,32}\) [0-9\.]{3,6}/ nocase ascii wide /* bash to elf */
@@ -269,20 +269,16 @@ rule SuspectPhp
     strings:
         $php = "<?php" fullword nocase
         $system = "system" fullword nocase  // localroot bruteforcers have a lot of this
-        $param1 = "GET" fullword nocase
-        $param2 = "POST" fullword nocase
-        $param3 = "REQUEST" fullword nocase
-        $param4 = "COOKIE" fullword nocase
-        $param5 = "SERVER" fullword nocase
+        $param1 = "_GET" fullword nocase
+        $param2 = "_POST" fullword nocase
+        $param3 = "_REQUEST" fullword nocase
+        $param4 = "_COOKIE" fullword nocase
+        $param5 = "_SERVER" fullword nocase
         $param6 = "_FILENAME" fullword nocase
-		$obf0 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{4}|[0-9a-f]{8}|(\\x[0-9a-f]){8}){1}[^"]*";/ nocase // strings obfuscated
-		$obf1 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{4}|[0-9a-f]{8}|(\\x[0-9a-f]){8}){1}[^']*';/ nocase // strings obfuscated
-		$obf2 = /[A-Za-z0-9+\/]{3}="/
-		$obf3 = /[A-Za-z0-9+\/]{3}='/
-		$obf4 = /[A-Za-z0-9+\/]{4}[A-Za-z0-9+\/]{2}=='/ 
-		$obf5 = /[A-Za-z0-9+\/]{4}[A-Za-z0-9+\/]{2}=='/ 
-		$obf6 = "eval(" nocase
-		$obf7 = /\$[a-z0-9_-]{1,160}\{[0-9]{1,3}\}\./ nocase // varname obfuscated
+		$obf0 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^"]*";|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^"]*",|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^"]*"\)/ nocase // strings obfuscated
+		$obf1 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^']*';|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^']*',|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^']*'\)/ nocase // strings obfuscated
+		$obf2 = "eval(" nocase
+		$obf3 = /\$[a-z0-9_-]{1,160}\{[0-9]{1,3}\}\./ nocase // varname obfuscated
 		$fobf0 = "CURLOPT" nocase
 		$fobf1 = "substr" nocase
 		$fobf2 = "header(" nocase 
@@ -340,7 +336,7 @@ rule SuspectPhp
         $func49 = "base64_decode" fullword nocase
         $whitelist = /escapeshellcmd|escapeshellarg/ nocase
     condition:
-        $php and (any of ($param*)) and  ((not $whitelist and (3 of ($func*) or #system > 250)) or b64 or hex or strrev or Hpack or (3 of ($obf*) and any of  ($fobf*)) or strsuspectfile)
+        $php and (((any of ($param*)) and  ((not $whitelist and (3 of ($func*) or #system > 250)) or b64 or hex or strrev or Hpack or strsuspectfile)) or (3 of ($obf*) and any of  ($fobf*)))
 }
 
 rule SuspectJS {
@@ -350,17 +346,13 @@ rule SuspectJS {
         filetype = "JS"
         
 	strings:
-		$obf0 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{4}|[0-9a-f]{8}|(\\x[0-9a-f]){8}){1}[^"]*";/ nocase // strings obfuscated
-		$obf1 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{4}|[0-9a-f]{8}|(\\x[0-9a-f]){8}){1}[^']*';/ nocase // strings obfuscated
-		$obf2 = /[A-Za-z0-9+\/]{3}="/
-		$obf3 = /[A-Za-z0-9+\/]{3}='/
-		$obf4 = /[A-Za-z0-9+\/]{4}[A-Za-z0-9+\/]{2}=='/ 
-		$obf5 = /[A-Za-z0-9+\/]{4}[A-Za-z0-9+\/]{2}=='/ 
-		$obf6 = "eval(" nocase
-		$obf7 = /(function\s+.*){3}/ nocase // base 64
-		$obf8 = /var\s+[^\s]*([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{4}){1}/ nocase // name var obfuscated
-		$obf9 = /var\s+[^\s]*([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{4}){1}/ nocase // name var obfuscated
-		$obf10 = /\.toString\([0-9]+\)/ nocase
+		$obf0 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^"]*";|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^"]*",|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^"]*"\)/ nocase // strings obfuscated
+		$obf1 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^']*';|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^']*',|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^']*'\)/ nocase // strings obfuscated
+		$obf2 = "eval(" nocase
+		$obf3 = /(function\s+.*){3}/ nocase // base 64
+		$obf4 = /var\s+[^\s]*[a-z_\$]([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{5}){1}/ nocase // name var obfuscated
+		$obf5 = /var\s+[^\s]*[a-z_\$]([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{5}){1}/ nocase // name var obfuscated
+		$obf6 = /\.toString\([0-9]+\)/ nocase
 	condition:
 	    filejs and (3 of ($obf*) or strsuspectfile)
 }
@@ -405,17 +397,13 @@ rule SuspectJSP
         $jsp1 = "import=" nocase
         $jsp2 = "%>"
         $req = "request."
-        $obf0 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{4}|[0-9a-f]{8}|(\\x[0-9a-f]){8}){1}[^"]*";/ nocase // strings obfuscated
-		$obf1 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{4}|[0-9a-f]{8}|(\\x[0-9a-f]){8}){1}[^']*';/ nocase // strings obfuscated
-		$obf2 = /[A-Za-z0-9+\/]{3}="/
-		$obf3 = /[A-Za-z0-9+\/]{3}='/
-		$obf4 = /[A-Za-z0-9+\/]{4}[A-Za-z0-9+\/]{2}=='/ 
-		$obf5 = /[A-Za-z0-9+\/]{4}[A-Za-z0-9+\/]{2}=='/ 
-		$obf6 = /(\\u00[0-9][0-9]){4}/ nocase
-		$obf7 = /(\\x[a-f0-9][a-f0-9]){4}/ nocase
-		$obf8 = /(\&\#x[a-f0-9][a-f0-9];){4}/ nocase
-		$obf9 = "<![CDATA[" nocase
-		$obf10 = "eval(" nocase
+        $obf0 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^"]*";|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^"]*",|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^"]*"\)/ nocase // strings obfuscated
+		$obf1 = /([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^']*';|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^']*',|([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{6}|[0-9a-f]{8}|(\\x[0-9a-f]){8}|[a-z0-9+\/]{2}==){1}[^']*'\)/ nocase // strings obfuscated
+		$obf2 = /(\\u00[0-9][0-9]){4}/ nocase
+		$obf3 = /(\\x[a-f0-9][a-f0-9]){4}/ nocase
+		$obf4 = /(\&\#x[a-f0-9][a-f0-9];){4}/ nocase
+		$obf5 = "<![CDATA[" nocase
+		$obf6 = "eval(" nocase
 		$d1 = "Runtime.getRuntime().exec" nocase
 		$d2 = /Expression\(\s{0,64}Runtime.getRuntime\(\)/ nocase
 		$d3 = "URLClassLoader" nocase
