@@ -27,6 +27,9 @@ fi
 #Options from https://stackoverflow.com/questions/14513305/how-to-write-unix-shell-scripts-with-options
 PUBKEY_PATH=""
 PUBKEY_URL=""
+YARA_URL_MEM=""
+YARA_URLGIT_MEM=""
+YARA_PATH_MEM=""
 YARA_URL=""
 YARA_URLGIT=""
 YARA_PATH=""
@@ -40,6 +43,9 @@ function usage(){
 	printf "\t-u                : url to download yara rules for linux ;\n"
 	printf "\t-g                : url git to download yara rules for linux ;\n"
 	printf "\t-y                : path contains yara rules for linux ;\n"
+	printf "\t-s                : url to download yara MEMORY rules for linux ;\n"
+	printf "\t-t                : url git to download MEMORY yara rules for linux ;\n"
+	printf "\t-a                : path contains yara MEMORY rules for linux ;\n"
 	printf "\t-c                : dont use community yara rules for linux ;\n"
 	printf "\t-h                : help.\n"
 	exit 0
@@ -62,6 +68,15 @@ set_options(){
             ;;
             "-y" )
                 YARA_PATH=$option
+            ;;
+	    "-s" )
+                YARA_URL_MEM=$option
+            ;;
+            "-t" )
+                YARA_URLGIT_MEM=$option
+            ;;
+            "-a" )
+                YARA_PATH_MEM=$option
             ;;
             "-w" )
                 PUBKEY_URL=$option
@@ -114,28 +129,52 @@ rm -rf spyre/
 ## Download yara Linux Yara rules
 #community rules (find new: https://github.com/InQuest/awesome-yara)
 if [[ $YARA_URL == "http"* ]]; then
-  wget $YARA_URL -O yararules/custom.yar
+  wget $YARA_URL -O yararules/fs/custom.yar
 fi
 if [[ $YARA_URLGIT == "http"* ]]; then
-  git clone $YARA_URLGIT yararules/yaragit
+  git clone $YARA_URLGIT yararules/fs/yaragit
   #cp yara rules in parent dir
-  cd yararules
+  cd yararules/fs/
   find yaragit/ -iname '*.yar*'  -exec cp {} ./ \;
   rm -rf yaragit
-  cd ../
+  cd ../../
 fi
 if [ -d "$YARA_PATH" ]; then
   #get file
-  cp -r $YARA_PATH yararules/yarapath
+  cp -r $YARA_PATH yararules/fs/yarapath
   #cp yara rules in parent dir
-  cd yararules
+  cd yararules/fs
   find yarapath/ -iname '*.yar*'  -exec cp {} ./ \;
   rm -rf yarapath/
-  cd ../
+  cd ../../
 fi
 if [ -f "$YARA_PATH" ]; then
   #get file
-  cp $YARA_PATH yararules/
+  cp $YARA_PATH yararules/fs/
+fi
+if [[ $YARA_URL_MEM == "http"* ]]; then
+  wget $YARA_URL_MEM -O yararules/mem/custom.yar
+fi
+if [[ $YARA_URLGIT_MEM == "http"* ]]; then
+  git clone $YARA_URLGIT_MEM yararules/mem/yaragit
+  #cp yara rules in parent dir
+  cd yararules/mem/
+  find yaragit/ -iname '*.yar*'  -exec cp {} ./ \;
+  rm -rf yaragit
+  cd ../../
+fi
+if [ -d "$YARA_PATH_MEM" ]; then
+  #get file
+  cp -r $YARA_PATH_MEM yararules/mem/yarapath
+  #cp yara rules in parent dir
+  cd yararules/mem
+  find yarapath/ -iname '*.yar*'  -exec cp {} ./ \;
+  rm -rf yarapath/
+  cd ../../
+fi
+if [ -f "$YARA_PATH_MEM" ]; then
+  #get file
+  cp $YARA_PATH yararules/mem/
 fi
 #check yararules with yarac
 python3 /opt/merge_yararules.py yararules/fs/
