@@ -138,7 +138,10 @@ if [ -f "$YARA_PATH" ]; then
   cp $YARA_PATH yararules/
 fi
 #check yararules with yarac
-python3 /opt/merge_yararules.py yararules/
+python3 /opt/merge_yararules.py yararules/fs/
+mv merged.yara filescan.yar
+python3 /opt/merge_yararules.py yararules/mem/
+mv merged.yara procscan.yar
 rm -rf yararules/
 
 ## Download or apply public certificate to encrypt archive file
