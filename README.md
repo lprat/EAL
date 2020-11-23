@@ -33,6 +33,11 @@ This tool written in bash for extract artefacts, and python(v3) for create timel
   - identify promiscous mode
   - make relation with files (1)
   - iptables rules
+  - arp
+  - check dns access
+  - internet access
+  - ping (google)
+  - check ip public output
 - process
   - ps
   - /proc/*/fd|exe
