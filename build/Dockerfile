@@ -35,5 +35,6 @@ RUN apt-get update \
 RUN pip3 install yara-python plyara
 COPY ./merge_yararules.py /opt
 COPY ./make_eal.sh /
+COPY ./yara.patch /opt
 RUN chmod +x /make_eal.sh && chmod +x /opt/merge_yararules.py
 ENTRYPOINT ["/bin/bash", "/make_eal.sh", "\"@$\""]
