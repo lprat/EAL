@@ -78,6 +78,7 @@ This tool written in bash for extract artefacts, and python(v3) for create timel
 ### Make custom package
 Build a custom script to extract artefacts from linux. Use Dockerfile (require docker: https://docs.docker.com/engine/install/debian/).  
 You can cutom to:  
+  - edit EAL.config file to configure extracted data
   - use pub key to encrypt result extracted
   - use dump memory (avml: https://github.com/microsoft/avml), if dump not work you can extract process memory
   - use yara scan process and/or file with custom and/or community rules (use spyre: https://github.com/spyre-project/spyre)
@@ -86,7 +87,7 @@ $git clone https://github.com/lprat/EAL/
 $cd build
 $docker build -t package_eal .
 #to get options:
-$docker run --rm -v $(pwd)/output:/tmp/output -ti package_eal -h 
+$docker run --rm -v $(pwd)/output:/tmp/output -v $(pwd)/EAL.config:/conf/EAL.config -ti package_eal -h 
 ~~~
 Script custom out in output directory, you can copy to the scan linux.  
 
