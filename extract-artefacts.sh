@@ -136,12 +136,6 @@ procdump()
     done
 )
 
-#Extract config
-if [ -f "/tmp/toolsEAL/tools/config.conf" ]
-then
-  #TODO check config file to change CONST
-fi
-
 #use local web serveur to share https://security-tracker.debian.org/tracker/debsecan/release/1/GENERIC (else use base64 and command: debsecan --source=file://localhost/tmp/debsecan/
 if [ -f "/tmp/toolsEAL/tools/GENERIC" ]
 then
