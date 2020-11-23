@@ -93,6 +93,18 @@
 
 #ATTACH_TOOLS
 
+if [ -f "/tmp/toolsEAL/tools.tar.gz.b64" ]; then
+  if which base64; then 
+    cat /tmp/toolsEAL/tools.tar.gz.b64|base64 -d>/tmp/toolsEAL/tools.tar.gz
+    rm /tmp/toolsEAL/tools.tar.gz.b64
+    tar -C  /tmp/toolsEAL/ -zxf /tmp/toolsEAL/tools.tar.gz
+  elif which openssl; then 
+    openssl base64 -d < /tmp/toolsEAL/tools.tar.gz.b64 /tmp/toolsEAL/tools.tar.gz
+    rm /tmp/toolsEAL/tools.tar.gz.b64
+    tar -C  /tmp/toolsEAL/ -zxf /tmp/toolsEAL/tools.tar.gz
+  fi
+fi
+
 #CONST CONF
 MEMORY=1
 MEM_PROC=1
