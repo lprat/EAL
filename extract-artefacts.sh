@@ -478,8 +478,13 @@ EOF
 
 ##package (ref: http://gedsismik.free.fr/darkdoc/article.php?id=64)
 #list
-if which dpkg; then dpkg -l ;fi > /tmp/artefacts/packages-list-deb
-if which rpm; then rpm -qa ;fi > /tmp/artefacts/packages-list-rmp
+if which dpkg; then 
+  dpkg -l > /tmp/artefacts/packages-list-deb
+  apt-config dump > /tmp/artefacts/apt-config
+fi
+if which rpm; then 
+  rpm -qa > /tmp/artefacts/packages-list-rmp
+fi
 if [ $OS == 2 ];then if which lslpp; then lslpp -L all ;fi > /tmp/artefacts/packages-list-aix;fi
 #integrity
 if which dpkg; then dpkg -l |grep -E '^ii'|awk '{print $2}'| while read line ; do dpkg -V $line >> /tmp/artefacts/packages-integrity-deb ; done ;fi
@@ -1683,6 +1688,58 @@ if which finger;then finger > /tmp/artefacts/finger_cmd;fi
 ## IPTABLES
 if which iptables-save;then iptables-save > /tmp/artefacts/iptables_rules.v4;fi
 if which ip6tables-save;then ip6tables-save > /tmp/artefacts/iptables_rules.v6;fi
+
+## DNS
+if which host;then
+  host www.google.fr > /tmp/artefacts/dns-result 2>&1
+  host www.google.fr 8.8.8.8 > /tmp/artefacts/dns-result-ext 2>&1
+  if which dnsdomainname; then
+    host -t all _ldap._tcp.dc._msdcs.$(dnsdomainname) > /tmp/artefacts/dns-result-ad 2>&1
+    if which nc;then
+      nc -vvv -w 1 _ldap._tcp.dc._msdcs.$(dnsdomainname) 389
+    fi
+  fi
+elif which dig;then
+  dig www.google.fr > /tmp/artefacts/dns-result 2>&1
+  dig @8.8.8.8 www.google.fr > /tmp/artefacts/dns-result-ext 2>&1
+  if which dnsdomainname; then
+    dig _ldap._tcp.dc._msdcs.$(dnsdomainname) all > /tmp/artefacts/dns-result-ad 2>&1
+    if which nc;then
+      nc -vvv -w 1 _ldap._tcp.dc._msdcs.$(dnsdomainname) 389
+    fi
+  fi
+elif which ping;then
+  ping -c 1 -n www.google.fr > /tmp/artefacts/host-result 2>&1
+  if which dnsdomainname; then
+    ping -c 1 -n _ldap._tcp.dc._msdcs.$(dnsdomainname) > /tmp/artefacts/dns-result-ad 2>&1
+    if which nc;then
+      nc -vvv -w 1 _ldap._tcp.dc._msdcs.$(dnsdomainname) 389
+    fi
+  fi
+fi
+
+## PING GOOGLE
+if which ping;then 
+  ping -c 1 216.58.215.35 > /tmp/artefacts/ping-result 2>&1
+fi
+
+## Internet access
+if which wget;then
+  wget -dO- www.google.fr > /tmp/artefacts/neta-result 2>&1
+  wget -q -O - checkip.dyndns.org | sed -e 's/.*Current IP Address: //' -e 's/<.*$//' > /tmp/artefacts/ip-public 2>&1
+elif which curl;then
+  curl -v www.google.fr > /tmp/artefacts/neta-result 2>&1
+  curl checkip.dyndns.org | sed -e 's/.*Current IP Address: //' -e 's/<.*$//' > /tmp/artefacts/ip-public 2>&1
+elif which nc;then
+  echo -e "GET / HTTP/1.0\r\nHost: www.google.fr\r\n\r\n" | nc -vvv www.google.fr 80 > /tmp/artefacts/neta-result 2>&1
+  echo -e "GET / HTTP/1.0\r\nHost: checkip.dyndns.org\r\n\r\n" | nc -vvv checkip.dyndns.org 80 | sed -e 's/.*Current IP Address: //' -e 's/<.*$//' > /tmp/artefacts/ip-public 2>&1
+fi
+
+## TODO check proxy service 
+
+## ARP TABLE
+if which arp;then arp > /tmp/artefacts/arp-table;fi
+
 
 ## MYSQL
 find /var/lib \( -fstype nfs -prune \) -o -name '*.frm' -o -name 'ib_logfile*' -o -name 'ibdata*'|tar -zcpvf /tmp/artefacts/mysqllog.tar.gz --files-from -
