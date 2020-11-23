@@ -73,10 +73,6 @@ This tool written in bash for extract artefacts, and python(v3) for create timel
   - who command display  
 - CVE check: use https://security-tracker.debian.org/tracker/debsecan/release/1/GENERIC, you can copy on local network (change URL_GENERIC env)
 
-
-## TODO
-- Swap extract option
-
 ## Usage
 
 ### Make custom package
@@ -271,6 +267,9 @@ tag: file_ps
   - https://github.com/plyara/plyara
   
 Thank to the community.
+
+## TODO
+- Swap extract option
 
 ## Contact
 
