@@ -554,6 +554,7 @@ for i in $(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1
     if [ ! -x "$(which md5sum)" ]; then
       md5sum $i >> /tmp/artefacts/static_file_hash
     fi
+  fi
 done
 gzip /tmp/artefacts/static_file.tar
 
