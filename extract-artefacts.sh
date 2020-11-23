@@ -100,8 +100,8 @@ GET_WEBSITE=0
 YARA_EXTRACT_FILE=1
 YARA_MAXSIZE="10MB"
 YARA_PATHSCAN="/"
-YARA_RULES_MEM="/tmp/toolsEAL/tools/filescan.yar"
-YARA_RULES_FS="/tmp/toolsEAL/tools/procscan.yar"
+YARA_RULES_FS="/tmp/toolsEAL/tools/filescan.yar"
+YARA_RULES_MEM="/tmp/toolsEAL/tools/procscan.yar"
 #extract static linked file - max size file
 EXTRACT_MAXSIZE=5
 
