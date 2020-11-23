@@ -105,6 +105,9 @@ YARA_RULES_FS="/tmp/toolsEAL/tools/procscan.yar"
 #extract static linked file - max size file
 EXTRACT_MAXSIZE=5
 
+if [ -f "/tmp/toolsEAL/tools/EAL.config" ]; then
+. /tmp/toolsEAL/tools/EAL.config
+fi
 #Function to find date creation from http://moiseevigor.github.io/software/2015/01/30/get-file-creation-time-on-linux-with-ext4/
 xstat() {
   for target in "${@}"; do
