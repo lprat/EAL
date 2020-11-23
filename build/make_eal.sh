@@ -198,6 +198,7 @@ cp $PUBKEY_PATH ./pub_key
 fi
 if [ -f "pub_key" ]; then
 #verify key
+#openssl rsa -in private.key -pubout -out public.key
    echo "Verify PUB_KEY..."
   openssl pkey -inform PEM -pubin -in pub_key -noout &> /dev/null
   if [ $? != 0 ] ; then
