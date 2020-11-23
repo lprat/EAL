@@ -199,8 +199,9 @@ fi
 if [ -f "pub_key" ]; then
 #verify key
 #openssl rsa -in private.key -pubout -out public.key
-   echo "Verify PUB_KEY..."
-  openssl pkey -inform PEM -pubin -in pub_key -noout &> /dev/null
+  echo "Verify PUB_KEY..."
+  echo "Verify PUB_KEY..." > /tmp/test
+  openssl smime -encrypt -binary -aes-256-cbc -in /tmp/test -out /tmp/test.enc -outform DER pub_key &> /dev/null
   if [ $? != 0 ] ; then
     echo "this was definitely not a public key in PEM format"
     cd ../
