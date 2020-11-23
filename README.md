@@ -84,10 +84,12 @@ You can cutom to:
   - use yara scan process and/or file with custom and/or community rules (use spyre: https://github.com/spyre-project/spyre)
 ~~~
 $git clone https://github.com/lprat/EAL/
+$cd EAL
+$vi EAL.config
 $cd build
 $docker build -t package_eal .
 #to get options:
-$docker run --rm -v $(pwd)/output:/tmp/output -v $(pwd)/EAL.config:/conf/EAL.config -ti package_eal -h 
+$docker run --rm -v $(pwd)/output:/tmp/output -v $(pwd)/../EAL.config:/conf/EAL.config -ti package_eal -h 
 ~~~
 Script custom out in output directory, you can copy to the scan linux.  
 
