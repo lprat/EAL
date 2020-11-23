@@ -223,9 +223,8 @@ tar czvf tools.tar.gz tools/
 openssl base64 < tools.tar.gz > tools.b64
 rm -rf tools
 rm tools.tar.gz
-sed  -i '1i cat << EOF > /tmp/toolsEAL/tools.tar.gz' tools.b64
+sed  -i '1i cat << EOF > /tmp/toolsEAL/tools.tar.gz.b64' tools.b64
 echo 'EOF' >> tools.b64
-echo 'tar -C  /tmp/toolsEAL/ -zxf /tmp/toolsEAL/tools.tar.gz' >> tools.b64
 sed  -i '1i mkdir /tmp/toolsEAL' tools.b64
 sed  -i '1i rm -rf /tmp/toolsEAL' tools.b64
 sed -i -e '/#ATTACH_TOOLS/{r tools.b64' -e 'd}' extract-artefacts.sh
