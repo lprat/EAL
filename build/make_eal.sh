@@ -208,6 +208,10 @@ fi
 ## Download debian security tracker data
 wget https://security-tracker.debian.org/tracker/debsecan/release/1/GENERIC -O GENERIC
 ## make script extrat
+## copy config
+if [ -f "/conf/EAL.config" ]; then
+  cp /conf/EAL.config .
+fi
 cd ../
 tar czvf tools.tar.gz tools/
 openssl base64 < tools.tar.gz > tools.b64
