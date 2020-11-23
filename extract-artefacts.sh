@@ -1665,7 +1665,7 @@ aXN0b3J5KQo=
 EOF
 
 if which popularity-contest;then popularity-contest > /tmp/artefacts/popularity-contest;fi
-if [ $OS == 1 ]; then if which base64;then cat /tmp/debsecan/debsecan_b64|base64 -d>/tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;elif which openssl;then openssl base64 -d < /tmp/debsecan/debsecan_b64 /tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;fi;fi;fi
+if [ $OS == 1 ]; then if which base64;then cat /tmp/debsecan/debsecan_b64|base64 -d>/tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;elif which openssl;then openssl base64 -d < /tmp/debsecan/debsecan_b64 /tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;fi;fi
 if which dpkg ;then if which debsecan ;then debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan; else /tmp/debsecan/debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan ;fi ;fi
 rm -rf /tmp/debsecan
 
