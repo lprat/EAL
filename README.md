@@ -18,6 +18,8 @@ This tool written in bash for extract artefacts, and python(v3) for create timel
   - cache
 - docker
   - json & og
+- virsh
+  - list vm
 - log
   - /var/log/
   - /run/log/
