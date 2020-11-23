@@ -1744,6 +1744,8 @@ if which arp;then arp > /tmp/artefacts/arp-table;fi
 ## MYSQL
 find /var/lib \( -fstype nfs -prune \) -o -name '*.frm' -o -name 'ib_logfile*' -o -name 'ibdata*'|tar -zcpvf /tmp/artefacts/mysqllog.tar.gz --files-from -
 
+## virsh
+if which arp;then virsh list --all > /tmp/artefacts/virsh;fi
 ##Deleted file on ext3 & ext4
 #restore
 #extundelete --restore-all --after $(date -d "-2 hours" +%s) /dev/sdX1
