@@ -178,6 +178,7 @@ if [ $OS == 1 ]; then free ;fi
 #use: https://github.com/kd8bny/LiMEaide for linux
 
 #extract memory or memory process
+echo "Extract memory" $(date)
 if [ $OS == 1 ] && [ $MEMORY == 1 ] && [ -f "/tmp/toolsEAL/tools/avml-minimal" ]
 then
   #use avml
@@ -196,6 +197,8 @@ then
   YARA_PROC=0
 fi
 
+#get FS
+echo "Extract FS info" $(date)
 #modified original ent code for print same of script ent.pl
 #cross compiled (used:https://github.com/dockcross/dockcross) in static
 #ref: http://www.fourmilab.ch/random/
@@ -228,6 +231,7 @@ if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune
 #if [ $OS == 1 ];then rm /tmp/ent32 ;fi
 #rm /tmp/ent32_b64
 
+echo "Extract General info" $(date)
 ##tomcat extract pass
 if grep 'tomcat-users.xml\:' /tmp/artefacts/all_files >/dev/null;then grep 'tomcat-users.xml\:' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g' | tar -zcvpf /tmp/artefacts/tomcat-passwd.tar.gz --files-from -;fi
 
@@ -308,6 +312,7 @@ if [ $OS == 1 ]; then find / -path /run/log -prune -o -path /var/log -prune -o \
 #sudo stat user (count, last, first) => plaso
 
 ##network
+echo "Extract network info" $(date)
 echo -e "#####Artefact Network#####\n" > /tmp/artefacts/network
 echo -e "-------\nnetstat -Aan:\n-------" >> /tmp/artefacts/network
 if [ $OS == 1 ]; then netstat -lantp >> /tmp/artefacts/network; fi
@@ -321,6 +326,7 @@ if [ $OS == 2 ]; then netstat -nr >> /tmp/artefacts/network ;fi
 if which rpcinfo;then rpcinfo > /tmp/artefacts/rpcinfo;fi
 
 ##PROCESSUS
+echo "Extract process info" $(date)
 if [ $OS == 2 ];then ps -aefl > /tmp/artefacts/process_ps;fi
 if [ $OS == 1 ];then ps auxf > /tmp/artefacts/process_ps;fi
 #sur chaque processus https://attack.mitre.org/techniques/T1055/
@@ -372,7 +378,7 @@ getPathByPid()
 }
 if [ $OS == 2 ];then for p in /proc/[0-9]*;do getPathByPid $(echo $p|awk -F '/' '{print $NF}') ;done ;fi
 #####
-
+echo "Extract kernel info" $(date)
 ##modules
 #linux
 if [ $OS == 1 ]; then awk '{ print $1 }' /proc/modules | xargs modinfo | grep filename | awk '{ print $2 }' | sort > /tmp/artefacts/kernel_modules;fi
@@ -425,6 +431,8 @@ fi
 if which tomoyo-savepolicy;then
   tomoyo-savepolicy -d > /tmp/artefacts/tomoyo-policy
 fi
+
+echo "Extract Specials files info" $(date)
 ##Sgid & suid & unknown group or user & system writable
 #ignore find
 #IGNORE_FIND=""
@@ -490,6 +498,7 @@ print  "'\$ARGV[0]':'\$ent'\n";
 EOF
 
 ##package (ref: http://gedsismik.free.fr/darkdoc/article.php?id=64)
+echo "Extract packages info" $(date)
 #list
 if which dpkg; then 
   dpkg -l > /tmp/artefacts/packages-list-deb
@@ -511,7 +520,9 @@ if [ $OS == 2 ];then if which lslpp; then lslpp -L all|grep -E '^  [0-9A-Za-z]'|
 #Rpm: rpm -qf path
 #dpkg: dpkg -S path
 #aix: lslpp -w
+
 #extract proc network whithout package
+echo "Extract proc file without package" $(date)
 if [ $OS == 1 ]
 then
   for path in $(for pid in $(lsof -niTCP -niUDP | awk '{print $2}'|sort -u|grep -v 'PID');do ls -l /proc/$pid/exe|awk -F ' -> ' '{print $2}';done);do
@@ -546,6 +557,7 @@ then
   gzip /tmp/artefacts/proc_network_file.tar
 fi
 ##static file extract, extract max 5mo
+echo "Extract static file without package" $(date)
 for i in $(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g'); do
   KEEPP=1
   if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_deb-list_files > /dev/null
@@ -578,6 +590,7 @@ done
 gzip /tmp/artefacts/static_file.tar
 
 #extract binary integrity package broken
+echo "Extract binary package fail integrity" $(date)
 if [ -f "/tmp/artefacts/packages-integrity-deb" ]
 then
   for path in $(for i in $(awk '{print $NF}' /tmp/artefacts/packages-integrity-deb);do file $i|grep 'ELF ';done); do
@@ -605,6 +618,7 @@ fi
 gzip /tmp/artefacts/bin_package_suspect.tar
 
 ##Extract systemd, rc.local, init.d
+echo "Extract autorun" $(date)
 #list service & verify path of execute (date & path standard)
 echo -e "#####Artefact Services#####\n" > /tmp/artefacts/services
 if [ $OS == 2 ]; then ls -l /etc/rc.d/init.d/* >> /tmp/artefacts/services_init;fi
@@ -622,6 +636,7 @@ for path in $(grep -iER 'ExecStart=|ExecReload=|ExecStop=' /etc/systemd |grep -v
 if [ $OS == 1 ]; then ls -la /etc/rc.local >> /tmp/artefacts/services_rclocal;fi
 grep -iER '(^|\s+)DAEMON\=|(^|\s+)NAME\=|(^|\s+)COMMAND\=|(^|\S+)[A-Z][A-Z0-9]*_BIN\=' /etc/init.d/ > /tmp/artefacts/services-initd_exe
 
+echo "Extract some info" $(date)
 #identify promiscus mode sur une interface => https://attack.mitre.org/techniques/T1040/
 echo -e "-------\nInterface in promiscous mode:\n-------" >> /tmp/artefacts/network
 ifconfig -a|grep -i promisc >> /tmp/artefacts/network
@@ -1681,7 +1696,7 @@ ICAgdGFyZ2V0ID0gVGFyZ2V0UHJpbnQob3B0aW9ucykKICAgIHJhdGVfc3lzdGVt
 KHRhcmdldCwgb3B0aW9ucywgZmV0Y2hfZGF0YShvcHRpb25zLCBjb25maWcpLCBo
 aXN0b3J5KQo=
 EOF
-
+echo "Extract debscan info" $(date)
 if which popularity-contest;then popularity-contest > /tmp/artefacts/popularity-contest;fi
 if [ $OS == 1 ]; then if which base64;then cat /tmp/debsecan/debsecan_b64|base64 -d>/tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;elif which openssl;then openssl base64 -d < /tmp/debsecan/debsecan_b64 /tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;fi;fi
 if which dpkg ;then if which debsecan ;then debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan; else /tmp/debsecan/debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan ;fi ;fi
@@ -1702,6 +1717,7 @@ if which finger;then finger > /tmp/artefacts/finger_cmd;fi
 if which iptables-save;then iptables-save > /tmp/artefacts/iptables_rules.v4;fi
 if which ip6tables-save;then ip6tables-save > /tmp/artefacts/iptables_rules.v6;fi
 
+echo "Extract active network info" $(date)
 ## DNS
 if which host;then
   host www.google.fr > /tmp/artefacts/dns-result 2>&1
@@ -1770,6 +1786,7 @@ if which arp;then virsh list --all > /tmp/artefacts/virsh;fi
 #create image disk: dd if=/dev/mapper/part-tmp of=tmp.raw
 
 #Yara scan
+echo "Scan and extract from yara rules" $(date)
 if [ $OS == 1 ] && [ -f "/tmp/toolsEAL/tools/spyre_x64" ]
 then
   MACHINE_TYPE=`uname -m`
