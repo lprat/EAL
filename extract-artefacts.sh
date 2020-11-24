@@ -328,7 +328,8 @@ if [ $OS == 1 ];then ls -l /proc/*/exe> /tmp/artefacts/process_exe;fi
 #if [ $OS == 1 ];then if which dpkg; then for path in $(ls -l /proc/*/exe|awk -F '->' '{print $2}'|sort -u);do echo check $path;dpkg -S $path;done;fi;fi > /tmp/artefacts/process_exe_package_dpkg
 #if [ $OS == 1 ];then if which rpm; then for path in $(ls -l /proc/*/exe|awk -F '->' '{print $2}'|sort -u);do echo check $path;dpkg -qf $path;done;fi;fi > /tmp/artefacts/process_exe_package_rpm
 if [ $OS == 2 ];then for pid in $(ps -aefl|awk '{print $4}');do procldd $pid;done > /tmp/artefacts/process_ldd;fi
-if [ $OS == 1 ];then if which pldd;then for pid in $(ps -aefl|awk '{print $4}');do pldd $pid;done > /tmp/artefacts/process_ldd;fi;fi
+#Remove pldd because lsof already get info and this command can be slowly on some system
+#if [ $OS == 1 ];then if which pldd;then for pid in $(ps -aefl|awk '{print $4}');do pldd $pid;done > /tmp/artefacts/process_ldd;fi;fi
 #if [ $OS == 1 ];then if which dpkg; then for path in $(cat /tmp/artefacts/process_ldd);do echo check $path;dpkg -S $path ;done;fi;fi  > /tmp/artefacts/process_ldd_package_dpkg
 #if [ $OS == 1 ];then if which rpm; then for path in $(cat /tmp/artefacts/process_ldd);do echo check $path;rpm -qf $path ;done;fi;fi  > /tmp/artefacts/process_ldd_package_rpm
 ls -la /proc/*/fd > /tmp/artefacts/process_fd
