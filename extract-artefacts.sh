@@ -303,7 +303,7 @@ if [ $OS == 2 ]; then tar cpvf  - /etc/| gzip -c >/tmp/artefacts/etc.tgz;fi
 if [ $OS == 1 ]; then tar zcpvf /tmp/artefacts/varlog.tgz /var/log/;fi
 if [ $OS == 2 ]; then tar cpvf  - /var/log/| gzip -c >/tmp/artefacts/varlog.tgz;fi
 if [ $OS == 1 ]; then tar zcpvf /tmp/artefacts/runlog.tgz /run/log/;fi
-if [ $OS == 1 ]; then find / -path /run/log -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o -name '*.log' -o -name '*.log.*' -o -name 'catalina.out' -o -name |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
+if [ $OS == 1 ]; then find / -path /run/log -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o -name '*.log' -o -name '*.log.*' -o -name 'catalina.out' |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
 #su stat user (count, last, first) => plaso
 #sudo stat user (count, last, first) => plaso
 
