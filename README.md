@@ -53,6 +53,8 @@ This tool written in bash for extract artefacts, and python(v3) for create timel
 - files (1)
   - stat or ls
   - type (cmd file)
+  - md5sum (slow)
+  - deleted files (slow)
 - Packages
   - integrity
   - list
