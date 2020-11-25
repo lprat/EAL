@@ -23,8 +23,8 @@ MEM_PROC=1
 YARA_EXTRACT_FILE=1
 YARA_MAXSIZE="10MB"
 YARA_PATHSCAN="/"
-YARA_RULES_FS="/tmp/toolsEAL/tools/filescan.yar"
-YARA_RULES_MEM="/tmp/toolsEAL/tools/procscan.yar"
+YARA_RULES_FS="filescan.yar"
+YARA_RULES_MEM="procscan.yar"
 EXTRACT_MAXSIZE=5
 
 # Import config
@@ -1657,4 +1657,5 @@ then
   fi
 fi
 rm -rf /tmp/artefacts/
+rm -rf /tmp/toolsEAL/
 
