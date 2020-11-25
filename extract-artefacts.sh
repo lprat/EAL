@@ -20,12 +20,27 @@ fi
 # Fix config if external file config dont exist
 MEMORY=1
 MEM_PROC=1
-YARA_EXTRACT_FILE=1
 YARA_MAXSIZE="10MB"
 YARA_PATHSCAN="/"
 YARA_RULES_FS="filescan.yar"
 YARA_RULES_MEM="procscan.yar"
 EXTRACT_MAXSIZE=5
+FILE_TYPE=1
+FILE_MD5=0
+FILE_DELETED=0
+DUMP_NETPROC=1
+DUMP_ELF_STATIC=1
+DUMP_PKG_INTEGRITY=1
+DUMP_DOCKER=1
+DUMP_LOG=1
+DUMP_YARA_MATCH=1
+USE_DEBSCAN=1
+YARA_SCAN=1
+PROCESS_INFO=1
+PACKAGE_INFO=1
+KERNEL_INFO=1
+AUTORUN_INFO=1
+INFO_ACTIVE_NET=0
 
 # Import config
 if [ -f "/tmp/toolsEAL/tools/EAL.config" ]; then
@@ -61,6 +76,51 @@ procdump()
       fi
     done
 )
+
+# Function recover deleted file in directory
+delfile() {
+  for target in "${@}"; do
+    df=$(df "${target}"|tail -1)
+    fs=$(echo "$df" | awk '{print $1}')
+    if [[ $fs == "/dev"* ]]; then
+      rm=$(echo "$df" | awk '{print $NF}')
+      dir=${target#"$rm"}
+      debugfs -R 'ls -dl '"${dir}" "${fs}" 2>/dev/null | grep ' 0> '| awk -v myvar="$target" '{print myvar"/"$NF}'
+    fi
+  done
+}
+
+# Function aix get full path pid
+# ref: https://stackoverflow.com/questions/606041/how-do-i-get-the-path-of-a-process-in-unix-linux
+getPathByPid()
+{
+    if [[ -e /proc/$1/object/a.out ]]; then
+        inode=$(ls -i /proc/$1/object/a.out 2>/dev/null | awk '{print $1}')
+        if [[ $? -eq 0 ]]; then
+            strnode=${inode}"$"
+            strNum=`ls -li /proc/$1/object/ 2>/dev/null | grep $strnode | awk '{print $NF}' | grep "[0-9]\{1,\}\.[0-9]\{1,\}\."`
+            if [[ $? -eq 0 ]]; then
+                # jfs2.10.6.5869
+                n1=`echo $strNum|awk -F"." '{print $2}'`
+                n2=`echo $strNum|awk -F"." '{print $3}'`
+                # brw-rw----    1 root     system       10,  6 Aug 23 2013  hd9var
+                strexp="^b.*"$n1,"[[:space:]]\{1,\}"$n2"[[:space:]]\{1,\}.*$"   # "^b.*10, \{1,\}5 \{1,\}.*$"
+                strdf=`ls -l /dev/ | grep $strexp | awk '{print $NF}'`
+                if [[ $? -eq 0 ]]; then
+                    strMpath=`df | grep $strdf | awk '{print $NF}'`
+                    if [[ $? -eq 0 ]]; then
+                        fullpath=`find $strMpath -inum $inode 2>/dev/null`
+                        if [[ $? -eq 0 ]]; then
+                            echo "$1: $fullpath" >> /tmp/artefacts/process_faout
+                            return 0
+                        fi
+                    fi
+                fi
+            fi
+        fi
+    fi
+    return 1
+}
 
 # Check GENERIC file for debscan
 if [ -f "/tmp/toolsEAL/tools/GENERIC" ]
@@ -112,12 +172,30 @@ echo "Extract FS info at $(date)"
 TESTSTAT=$(stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' /)
 if [ $OS == 1 ];then 
   if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
-    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} + -type f -exec file {} + > /tmp/artefacts/all_files 
+    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} + > /tmp/artefacts/all_files 
   else
-    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + -type f -exec file {} + > /tmp/artefacts/all_files 
+    find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + > /tmp/artefacts/all_files 
+  fi
+  if [ $FILE_TYPE == 1 ];then 
+    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print0|xargs -0 -n 100000 file >> /tmp/artefacts/all_files2
+  fi
+  if [ -x "$(which md5sum)" ] && [ $FILE_MD5 == 1 ] 
+  then 
+    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print0|xargs -0 -n 100000 md5sum >> /tmp/artefacts/all_files2
+  fi
+  if [ -x "$(which debugfs)" ] && [ $FILE_DELETED == 1 ] 
+  then 
+    for path in $(find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print0|xargs -0 -n 100000 md5sum)
+    do
+      delfile "$path" >> /tmp/artefacts/files-deleted
+    done
   fi
 fi
-if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -type f -exec file {} + > /tmp/artefacts/all_files_file;fi
+
+if [ $OS == 2 ] && [ $FILE_TYPE == 1 ]
+then 
+  find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -type f -size -5M -exec file {} + > /tmp/artefacts/all_files_file
+fi
 if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -ls > /tmp/artefacts/all_files;fi
 
 # General info
@@ -186,161 +264,147 @@ if grep 'tomcat-users.xml\:' /tmp/artefacts/all_files >/dev/null;then grep 'tomc
 ## Docker
 echo -e "#####Artefact docker#####\n" > /tmp/artefacts/dockers
 if which docker; then docker images >> /tmp/artefacts/dockers; docker ps -a >> /tmp/artefacts/dockers; for id in $(docker ps -a|awk '{print $1}'|sed '1d');do echo -e "\nDocker ID $id" >> /tmp/artefacts/dockers ; docker inspect "$id" >> /tmp/artefacts/dockers ;done ;fi
-if [ $OS == 1 ]; then find /var/lib/docker/containers -name '*.json' -o -name '*.log' | tar -zcvpf /tmp/artefacts/docker.tar.gz --files-from -;fi
+if [ $OS == 1 ] && [ $DUMP_DOCKER == 1 ]
+then 
+  find /var/lib/docker/containers -name '*.json' -o -name '*.log' | tar -zcvpf /tmp/artefacts/docker.tar.gz --files-from -
+fi
 
 ## Extract /etc
-if [ $OS == 1 ]; then tar zcpvf /tmp/artefacts/etc.tgz /etc/ ;fi
-if [ $OS == 2 ]; then tar cpvf  - /etc/| gzip -c >/tmp/artefacts/etc.tgz;fi
+if [ $OS == 1 ] && [ $DUMP_ETC == 1 ]; then tar zcpvf /tmp/artefacts/etc.tgz /etc/ ;fi
+if [ $OS == 2 ] && [ $DUMP_ETC == 1 ]; then tar cpvf  - /etc/| gzip -c >/tmp/artefacts/etc.tgz;fi
 
 ## Extract log /var/log/ & /run/log
-if [ $OS == 1 ]; then tar zcpvf /tmp/artefacts/varlog.tgz /var/log/;fi
-if [ $OS == 2 ]; then tar cpvf  - /var/log/| gzip -c >/tmp/artefacts/varlog.tgz;fi
-if [ $OS == 1 ]; then tar zcpvf /tmp/artefacts/runlog.tgz /run/log/;fi
-if [ $OS == 1 ]; then find / -path /run/log -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o -name '*.log' -o -name '*.log.*' -o -name 'catalina.out' |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
+if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then tar zcpvf /tmp/artefacts/varlog.tgz /var/log/;fi
+if [ $OS == 2 ] && [ $DUMP_LOG == 1 ]; then tar cpvf  - /var/log/| gzip -c >/tmp/artefacts/varlog.tgz;fi
+if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then tar zcpvf /tmp/artefacts/runlog.tgz /run/log/;fi
+if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then find / -path /run/log -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o -name '*.log' -o -name '*.log.*' -o -name 'catalina.out' |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
 
 
 ## Network info
-echo "Extract network info at $(date)"
-OS=1
-{
-echo -e "#####Artefact Network#####\n";
-echo -e "-------\nnetstat -Aan:\n-------";
-if [ $OS == 1 ]; then netstat -lantp; fi
-if [ $OS == 2 ]; then netstat -Aan ; fi
-echo -e "-------\nlsof -i:\n-------";
-lsof -i;
-echo -e "-------\nRoute:\n-------";
-if [ $OS == 1 ]; then route -n;fi
-if [ $OS == 2 ]; then netstat -nr ;fi
-echo -e "-------\nInterface in promiscous mode:\n-------";
-ifconfig -a|grep -i promisc;
-} > /tmp/artefacts/network
-
-## RPC info
-if which rpcinfo;then rpcinfo > /tmp/artefacts/rpcinfo;fi
+if [ $NETWORK_INFO == 1 ]
+then
+  echo "Extract network info at $(date)"
+  {
+  echo -e "#####Artefact Network#####\n";
+  echo -e "-------\nnetstat -Aan:\n-------";
+  if [ $OS == 1 ]; then netstat -lantp; fi
+  if [ $OS == 2 ]; then netstat -Aan ; fi
+  echo -e "-------\nlsof -i:\n-------";
+  lsof -i;
+  echo -e "-------\nRoute:\n-------";
+  if [ $OS == 1 ]; then route -n;fi
+  if [ $OS == 2 ]; then netstat -nr ;fi
+  echo -e "-------\nInterface in promiscous mode:\n-------";
+  ifconfig -a|grep -i promisc;
+  } > /tmp/artefacts/network
+  ### RPC info
+  if which rpcinfo;then rpcinfo > /tmp/artefacts/rpcinfo;fi
+  ### IPTABLES
+  if which iptables-save;then iptables-save > /tmp/artefacts/iptables_rules.v4;fi
+  if which ip6tables-save;then ip6tables-save > /tmp/artefacts/iptables_rules.v6;fi
+fi
 
 ## PROCESS
-echo "Extract process info at $(date)"
-if [ $OS == 2 ];then ps -aefl > /tmp/artefacts/process_ps;fi
-if [ $OS == 1 ];then ps auxf > /tmp/artefacts/process_ps;fi
-if [ $OS == 1 ];then ls -l /proc/*/exe> /tmp/artefacts/process_exe;fi
-if [ $OS == 2 ];then for pid in $(ps -aefl|awk '{print $4}');do procldd "$pid";done > /tmp/artefacts/process_ldd;fi
-ls -la /proc/*/fd > /tmp/artefacts/process_fd
-if [ $OS == 2 ];then cksum /proc/*/object/a.out > /tmp/artefacts/process_cksum;fi
-if [ $OS == 2 ];then ls -l /proc/*/object/a.out > /tmp/artefacts/process_aout;fi
-### Handles
-lsof > /tmp/artefacts/process_lsof
-
-#####AIX
-#ref: https://stackoverflow.com/questions/606041/how-do-i-get-the-path-of-a-process-in-unix-linux
-#function aix get full path pid
-getPathByPid()
-{
-    if [[ -e /proc/$1/object/a.out ]]; then
-        inode=$(ls -i /proc/$1/object/a.out 2>/dev/null | awk '{print $1}')
-        if [[ $? -eq 0 ]]; then
-            strnode=${inode}"$"
-            strNum=`ls -li /proc/$1/object/ 2>/dev/null | grep $strnode | awk '{print $NF}' | grep "[0-9]\{1,\}\.[0-9]\{1,\}\."`
-            if [[ $? -eq 0 ]]; then
-                # jfs2.10.6.5869
-                n1=`echo $strNum|awk -F"." '{print $2}'`
-                n2=`echo $strNum|awk -F"." '{print $3}'`
-                # brw-rw----    1 root     system       10,  6 Aug 23 2013  hd9var
-                strexp="^b.*"$n1,"[[:space:]]\{1,\}"$n2"[[:space:]]\{1,\}.*$"   # "^b.*10, \{1,\}5 \{1,\}.*$"
-                strdf=`ls -l /dev/ | grep $strexp | awk '{print $NF}'`
-                if [[ $? -eq 0 ]]; then
-                    strMpath=`df | grep $strdf | awk '{print $NF}'`
-                    if [[ $? -eq 0 ]]; then
-                        fullpath=`find $strMpath -inum $inode 2>/dev/null`
-                        if [[ $? -eq 0 ]]; then
-                            echo "$1: $fullpath" >> /tmp/artefacts/process_faout
-                            return 0
-                        fi
-                    fi
-                fi
-            fi
-        fi
-    fi
-    return 1
-}
-if [ $OS == 2 ];then for p in /proc/[0-9]*;do getPathByPid $(echo $p|awk -F '/' '{print $NF}') ;done ;fi
+if [ $PROCESS_INFO == 1 ]
+then
+  echo "Extract process info at $(date)"
+  if [ $OS == 2 ];then ps -aefl > /tmp/artefacts/process_ps;fi
+  if [ $OS == 1 ];then ps auxf > /tmp/artefacts/process_ps;fi
+  if [ $OS == 1 ];then ls -l /proc/*/exe> /tmp/artefacts/process_exe;fi
+  if [ $OS == 2 ];then for pid in $(ps -aefl|awk '{print $4}');do procldd "$pid";done > /tmp/artefacts/process_ldd;fi
+  ls -la /proc/*/fd > /tmp/artefacts/process_fd
+  if [ $OS == 2 ];then cksum /proc/*/object/a.out > /tmp/artefacts/process_cksum;fi
+  if [ $OS == 2 ];then ls -l /proc/*/object/a.out > /tmp/artefacts/process_aout;fi
+  ### Handles
+  lsof > /tmp/artefacts/process_lsof
+  if [ $OS == 2 ];then for p in /proc/[0-9]*;do getPathByPid $(echo $p|awk -F '/' '{print $NF}') ;done ;fi
+fi 
 
 ## Kernel info
-echo "Extract kernel info at $(date)"
-### Modules
-if [ $OS == 1 ]; then awk '{ print $1 }' /proc/modules | xargs modinfo | grep filename | awk '{ print $2 }' | sort > /tmp/artefacts/kernel_modules;fi
-if [ $OS == 2 ]; then genkex > /tmp/artefacts/kernel_modules;fi
-#### Verify not writable
-if [ $OS == 1 ]; then 
-  while IFS= read -r path;do ls -l "$path" >> /tmp/artefacts/kernel_modules_rw;done < /tmp/artefacts/kernel_modules
-fi
-if [ $OS == 2 ]; then 
-  for path in $(genkex|awk '{print $NF}');do ls -l "$path" >> /tmp/artefacts/kernel_modules_rw;done
-fi
-### SYSCTL
-if which sysctl;then sysctl -a > /tmp/artefacts/sysctl;fi
-### SSDT
-if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
-  find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/ssdt
-else
-  find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=ctime {} \; > /tmp/artefacts/ssdt
-  find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=atime {} \; >> /tmp/artefacts/ssdt
-  find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time {} \; >> /tmp/artefacts/ssdt
-fi
-### SYS CONF
-mkdir /tmp/artefacts/conf_sys/
-if [ -f  /proc/sys/kernel/randomize_va_space ]; then cp /proc/sys/kernel/randomize_va_space /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ]; then cp /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/kernel/bootloader_type ]; then cp /proc/sys/kernel/bootloader_type /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/kernel/bootloader_version ]; then cp /proc/sys/kernel/bootloader_version /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/kernel/kexec_load_disabled ]; then cp /proc/sys/kernel/kexec_load_disabled /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/kernel/modules_disabled ]; then cp /proc/sys/kernel/modules_disabled /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/kernel/tainted ]; then cp /proc/sys/kernel/tainted /tmp/artefacts/conf_sys/;fi
-find /proc/sys/net/ipv4/ -name 'ip_forward' -o -name 'mc_forwarding' -o -name 'rp_filter' -o -name 'log_martians' -o -name 'accept_redirects' -o -name 'secure_redirects' -o -name 'send_redirects'|tar -zcpvf /tmp/artefacts/conf_sys/net_ipv4.tar.gz --files-from -
-find /proc/sys/net/ -name 'forwarding' -o -name 'accept_source_route'|tar -zcpvf /tmp/artefacts/conf_sys/net_ip.tar.gz --files-from -
-if [ -f  /proc/net/arp ]; then cp /proc/net/arp /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/mounts ]; then cp /proc/mounts /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/kernel/dmesg_restrict ]; then cp /proc/sys/kernel/dmesg_restrict /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/kernel/kptr_restrict ]; then cp /proc/sys/kernel/kptr_restrict /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/fs/suid_dumpable ]; then cp /proc/sys/fs/suid_dumpable /tmp/artefacts/conf_sys/;fi
-if [ -f  /proc/sys/net/ipv4/tcp_syncookies ]; then cp /proc/sys/net/ipv4/tcp_syncookies /tmp/artefacts/conf_sys/;fi
-if [ -f  /sys/kernel/security/lsm ]; then cat /sys/kernel/security/lsm > /tmp/artefacts/security-lsm;fi
-### apparmor
-if which aa-status;then
-  aa-status > /tmp/artefacts/aa-status
-fi
-### selinux
-if which sestatus;then
-  sestatus > /tmp/artefacts/sestatus
-fi
-### tomoyo
-if which tomoyo-savepolicy;then
-  tomoyo-savepolicy -d > /tmp/artefacts/tomoyo-policy
+if [ $KERNEL_INFO == 1 ]
+then
+  echo "Extract kernel info at $(date)"
+  ### Modules
+  if [ $OS == 1 ]; then awk '{ print $1 }' /proc/modules | xargs modinfo | grep filename | awk '{ print $2 }' | sort > /tmp/artefacts/kernel_modules;fi
+  if [ $OS == 2 ]; then genkex > /tmp/artefacts/kernel_modules;fi
+  #### Verify not writable
+  if [ $OS == 1 ]; then 
+    while IFS= read -r path;do ls -l "$path" >> /tmp/artefacts/kernel_modules_rw;done < /tmp/artefacts/kernel_modules
+  fi
+  if [ $OS == 2 ]; then 
+    for path in $(genkex|awk '{print $NF}');do ls -l "$path" >> /tmp/artefacts/kernel_modules_rw;done
+  fi
+  ### SYSCTL
+  if which sysctl;then sysctl -a > /tmp/artefacts/sysctl;fi
+  ### SSDT
+  if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
+    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/ssdt
+  else
+    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=ctime {} \; > /tmp/artefacts/ssdt
+    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=atime {} \; >> /tmp/artefacts/ssdt
+    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time {} \; >> /tmp/artefacts/ssdt
+  fi
+  ### SYS CONF
+  mkdir /tmp/artefacts/conf_sys/
+  if [ -f  /proc/sys/kernel/randomize_va_space ]; then cp /proc/sys/kernel/randomize_va_space /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ]; then cp /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/bootloader_type ]; then cp /proc/sys/kernel/bootloader_type /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/bootloader_version ]; then cp /proc/sys/kernel/bootloader_version /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/kexec_load_disabled ]; then cp /proc/sys/kernel/kexec_load_disabled /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/modules_disabled ]; then cp /proc/sys/kernel/modules_disabled /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/tainted ]; then cp /proc/sys/kernel/tainted /tmp/artefacts/conf_sys/;fi
+  find /proc/sys/net/ipv4/ -name 'ip_forward' -o -name 'mc_forwarding' -o -name 'rp_filter' -o -name 'log_martians' -o -name 'accept_redirects' -o -name 'secure_redirects' -o -name 'send_redirects'|tar -zcpvf /tmp/artefacts/conf_sys/net_ipv4.tar.gz --files-from -
+  find /proc/sys/net/ -name 'forwarding' -o -name 'accept_source_route'|tar -zcpvf /tmp/artefacts/conf_sys/net_ip.tar.gz --files-from -
+  if [ -f  /proc/net/arp ]; then cp /proc/net/arp /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/mounts ]; then cp /proc/mounts /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/dmesg_restrict ]; then cp /proc/sys/kernel/dmesg_restrict /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/kptr_restrict ]; then cp /proc/sys/kernel/kptr_restrict /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/fs/suid_dumpable ]; then cp /proc/sys/fs/suid_dumpable /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/net/ipv4/tcp_syncookies ]; then cp /proc/sys/net/ipv4/tcp_syncookies /tmp/artefacts/conf_sys/;fi
+  if [ -f  /sys/kernel/security/lsm ]; then cat /sys/kernel/security/lsm > /tmp/artefacts/security-lsm;fi
+  ### apparmor
+  if which aa-status;then
+    aa-status > /tmp/artefacts/aa-status
+  fi
+  ### selinux
+  if which sestatus;then
+    sestatus > /tmp/artefacts/sestatus
+  fi
+  ### tomoyo
+  if which tomoyo-savepolicy;then
+    tomoyo-savepolicy -d > /tmp/artefacts/tomoyo-policy
+  fi
 fi
 
 ## Package (ref: http://gedsismik.free.fr/darkdoc/article.php?id=64)
-echo "Extract packages info at $(date)"
-if which dpkg; then 
-  dpkg -l > /tmp/artefacts/packages-list-deb
-  apt-config dump > /tmp/artefacts/apt-config
+if [ $PACKAGE_INFO == 1 ]
+then
+  echo "Extract packages info at $(date)"
+  if which dpkg; then 
+    dpkg -l > /tmp/artefacts/packages-list-deb
+    apt-config dump > /tmp/artefacts/apt-config
+  fi
+  if which rpm; then 
+    rpm -qa > /tmp/artefacts/packages-list-rmp
+  fi
+  if [ $OS == 2 ];then if which lslpp; then lslpp -L all ;fi > /tmp/artefacts/packages-list-aix;fi
+  ### Integrity
+  if which dpkg; then dpkg -l |grep -E '^ii'|awk '{print $2}'| while read -r line ; do dpkg -V "$line" >> /tmp/artefacts/packages-integrity-deb ; done ;fi
+  if which rpm; then rpm -qa | while read -r line ; do rpm -V "$line" >> /tmp/artefacts/packages-integrity-rpm  ; done ;fi
+  if [ $OS == 2 ];then if which lslpp; then lslpp -L all|grep -E '^  [0-9A-Za-z]'|awk '{print $1}'|while read -r line ; do echo "Package Name: $line" >> /tmp/artefacts/packages-integrity-aix;lslpp -v "$line"  >> /tmp/artefacts/packages-integrity-aix; done ; fi ;fi
+  ### List all files
+  if which dpkg; then dpkg -l |grep -E '^ii'|awk '{print $2}'| while read -r line ; do echo "Package Name: $line" >> /tmp/artefacts/packages_deb-list_files; dpkg -L "$line" >> /tmp/artefacts/packages_deb-list_files; done ;fi
+  if which rpm; then rpm -qa | while read -r line ; do echo "Package Name: $line" >> /tmp/artefacts/packages_rpm-list_files; rpm -ql "$line" >> /tmp/artefacts/packages_rpm-list_files ; done ;fi
+  if [ $OS == 2 ];then if which lslpp; then lslpp -L all|grep -E '^  [0-9A-Za-z]'|awk '{print $1}'|while read -r line ; do echo "Package Name: $line" >> /tmp/artefacts/packages_aix-list_files;lslpp -f "$line"  >> /tmp/artefacts/packages_aix-list_files; done ; fi ;fi
+  ### PACKAGE CONFIG
+  if which chkconfig;then chkconfig --list > /tmp/artefacts/chkconfig;fi
+  if which yum;then yum list-security > /tmp/artefacts/yum-security;fi
 fi
-if which rpm; then 
-  rpm -qa > /tmp/artefacts/packages-list-rmp
-fi
-if [ $OS == 2 ];then if which lslpp; then lslpp -L all ;fi > /tmp/artefacts/packages-list-aix;fi
-### Integrity
-if which dpkg; then dpkg -l |grep -E '^ii'|awk '{print $2}'| while read -r line ; do dpkg -V "$line" >> /tmp/artefacts/packages-integrity-deb ; done ;fi
-if which rpm; then rpm -qa | while read -r line ; do rpm -V "$line" >> /tmp/artefacts/packages-integrity-rpm  ; done ;fi
-if [ $OS == 2 ];then if which lslpp; then lslpp -L all|grep -E '^  [0-9A-Za-z]'|awk '{print $1}'|while read -r line ; do echo "Package Name: $line" >> /tmp/artefacts/packages-integrity-aix;lslpp -v "$line"  >> /tmp/artefacts/packages-integrity-aix; done ; fi ;fi
-### List all files
-if which dpkg; then dpkg -l |grep -E '^ii'|awk '{print $2}'| while read -r line ; do echo "Package Name: $line" >> /tmp/artefacts/packages_deb-list_files; dpkg -L "$line" >> /tmp/artefacts/packages_deb-list_files; done ;fi
-if which rpm; then rpm -qa | while read -r line ; do echo "Package Name: $line" >> /tmp/artefacts/packages_rpm-list_files; rpm -ql "$line" >> /tmp/artefacts/packages_rpm-list_files ; done ;fi
-if [ $OS == 2 ];then if which lslpp; then lslpp -L all|grep -E '^  [0-9A-Za-z]'|awk '{print $1}'|while read -r line ; do echo "Package Name: $line" >> /tmp/artefacts/packages_aix-list_files;lslpp -f "$line"  >> /tmp/artefacts/packages_aix-list_files; done ; fi ;fi
 
 ## Extract proc network whithout package
-echo "Extract proc file without package at $(date)"
-if [ $OS == 1 ]
+if [ $OS == 1 ] && [ $DUMP_NETPROC == 1 ]
 then
+  echo "Extract proc use network out of package at $(date)"
   for path in $(for pid in $(lsof -niTCP -niUDP | awk '{print $2}'|sort -u|grep -v 'PID');do ls -l /proc/"$pid"/exe|awk -F ' -> ' '{print $2}';done);do
     KEEPP=1
     if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_deb-list_files > /dev/null
@@ -373,42 +437,45 @@ then
   gzip /tmp/artefacts/proc_network_file.tar
 fi
 ## Static file extract, extract max 5mo
-echo "Extract static file without package at $(date)"
-while IFS= read -r i;do
-  KEEPP=1
-  if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_deb-list_files > /dev/null
-  then
-    KEEPP=0
-  fi
-  if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_rpm-list_files > /dev/null
-  then
-    KEEPP=0
-  fi
-  if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-deb > /dev/null
-  then
+if [ $DUMP_ELF_STATIC == 1 ]
+then
+  echo "Extract static file without package at $(date)"
+  while IFS= read -r i;do
     KEEPP=1
-  fi
-  if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-rpm > /dev/null
-  then
-    KEEPP=1
-  fi
-  if [ $KEEPP == 1 ]
-  then
-    size=$(du -m "${i}" | cut -f 1)
-    if [ "$size" -le $EXTRACT_MAXSIZE ]; then
-      tar vuf /tmp/artefacts/static_file.tar "$i"
+    if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_deb-list_files > /dev/null
+    then
+      KEEPP=0
     fi
-    if [ ! -x "$(which md5sum)" ]; then
-      md5sum "$i" >> /tmp/artefacts/static_file_hash
+    if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_rpm-list_files > /dev/null
+    then
+      KEEPP=0
     fi
-  fi
-done  < <(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g')
-gzip /tmp/artefacts/static_file.tar
+    if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-deb > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-rpm > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ $KEEPP == 1 ]
+    then
+      size=$(du -m "${i}" | cut -f 1)
+      if [ "$size" -le $EXTRACT_MAXSIZE ]; then
+        tar vuf /tmp/artefacts/static_file.tar "$i"
+      fi
+      if [ ! -x "$(which md5sum)" ]; then
+        md5sum "$i" >> /tmp/artefacts/static_file_hash
+      fi
+    fi
+  done  < <(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g')
+  gzip /tmp/artefacts/static_file.tar
+fi
 
 ## Extract binary integrity package broken
-echo "Extract binary package fail integrity at $(date)"
-if [ -f "/tmp/artefacts/packages-integrity-deb" ]
+if [ -f "/tmp/artefacts/packages-integrity-deb" ] && [ $DUMP_PKG_INTEGRITY == 1 ]
 then
+  echo "Extract binary package DEB fail integrity at $(date)"
   for path in $(for i in $(awk '{print $NF}' /tmp/artefacts/packages-integrity-deb);do file "$i"|grep 'ELF ';done); do
     size=$(du -m "${path}" | cut -f 1)
     if [ "$size" -le $EXTRACT_MAXSIZE ]; then
@@ -419,8 +486,9 @@ then
     fi
   done
 fi
-if [ -f "/tmp/artefacts/packages-integrity-rpm" ]
+if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && [ $DUMP_PKG_INTEGRITY == 1 ]
 then
+  echo "Extract binary package RPM fail integrity at $(date)"
   for path in $(for i in $(awk '{print $NF}' /tmp/artefacts/packages-integrity-rpm);do file "$i"|grep 'ELF ';done); do
     size=$(du -m "${path}" | cut -f 1)
     if [ "$size" -le $EXTRACT_MAXSIZE ]; then
@@ -434,21 +502,24 @@ fi
 gzip /tmp/artefacts/bin_package_suspect.tar
 
 ## Extract systemd, rc.local, init.d
-echo "Extract autorun at $(date)"
-### list service & verify path of execute (date & path standard)
-echo -e "#####Artefact Services#####\n" > /tmp/artefacts/services
-if [ $OS == 2 ]; then ls -l /etc/rc.d/init.d/* >> /tmp/artefacts/services_init;fi
-### extract all path if exist and check package
-if [ $OS == 2 ]; then lssrc -a >> /tmp/artefacts/services;fi
-if [ $OS == 2 ]; then ls -l /etc/inittab >> /tmp/artefacts/services_inittab ; cat /etc/inittab >> /tmp/artefacts/services_inittab;fi
-if [ $OS == 1 ]; then ls -laR /etc/init.d/ >> /tmp/artefacts/services_init;fi
-if [ $OS == 1 ]; then ls -laR /etc/systemd/ >> /tmp/artefacts/services_systemd;fi
-if [ $OS == 1 ]; then systemctl list-units --type=service > /tmp/artefacts/services_systemd_list;fi
-if [ $OS == 1 ]; then ls -laR /run/systemd >> /tmp/artefacts/services_systemd_runtime;fi
-### check contains variable: ExecStart, ExecStop, ExecReload (path exist and from package)
-for path in $(grep -iER 'ExecStart=|ExecReload=|ExecStop=' /etc/systemd |grep -vE '^#'|awk -F '=' '{print $2}'|awk '{print $1}');do echo check "$path";done >/tmp/artefacts/service-systemd
-if [ $OS == 1 ]; then ls -la /etc/rc.local >> /tmp/artefacts/services_rclocal;fi
-grep -iER '(^|\s+)DAEMON\=|(^|\s+)NAME\=|(^|\s+)COMMAND\=|(^|\S+)[A-Z][A-Z0-9]*_BIN\=' /etc/init.d/ > /tmp/artefacts/services-initd_exe
+if [ $AUTORUN_INFO == 1 ]
+then
+  echo "Extract autorun at $(date)"
+  ### list service & verify path of execute (date & path standard)
+  echo -e "#####Artefact Services#####\n" > /tmp/artefacts/services
+  if [ $OS == 2 ]; then ls -l /etc/rc.d/init.d/* >> /tmp/artefacts/services_init;fi
+  ### extract all path if exist and check package
+  if [ $OS == 2 ]; then lssrc -a >> /tmp/artefacts/services;fi
+  if [ $OS == 2 ]; then ls -l /etc/inittab >> /tmp/artefacts/services_inittab ; cat /etc/inittab >> /tmp/artefacts/services_inittab;fi
+  if [ $OS == 1 ]; then ls -laR /etc/init.d/ >> /tmp/artefacts/services_init;fi
+  if [ $OS == 1 ]; then ls -laR /etc/systemd/ >> /tmp/artefacts/services_systemd;fi
+  if [ $OS == 1 ]; then systemctl list-units --type=service > /tmp/artefacts/services_systemd_list;fi
+  if [ $OS == 1 ]; then ls -laR /run/systemd >> /tmp/artefacts/services_systemd_runtime;fi
+  ### check contains variable: ExecStart, ExecStop, ExecReload (path exist and from package)
+  for path in $(grep -iER 'ExecStart=|ExecReload=|ExecStop=' /etc/systemd |grep -vE '^#'|awk -F '=' '{print $2}'|awk '{print $1}');do echo check "$path";done >/tmp/artefacts/service-systemd
+  if [ $OS == 1 ]; then ls -la /etc/rc.local >> /tmp/artefacts/services_rclocal;fi
+  grep -iER '(^|\s+)DAEMON\=|(^|\s+)NAME\=|(^|\s+)COMMAND\=|(^|\S+)[A-Z][A-Z0-9]*_BIN\=' /etc/init.d/ > /tmp/artefacts/services-initd_exe
+fi
 
 ## Divers Info
 echo "Extract some info at $(date)"
@@ -499,13 +570,6 @@ else
       find /dev -type f -exec md5sum {} \; >> /tmp/artefacts/files_in_dev
     fi
 fi
-### Ext journal
-mkdir /tmp/artefacts/journal_ext4
-for path in $(mount|grep -i ext4|awk '{print $1}'); do
-   debugfs -R "dump <8> /tmp/artefacts/journal_ext4/$(basename $path)" $path
-done
-tar zcvpf /tmp/artefacts/journal_ext4.tgz /tmp/artefacts/journal_ext4/
-rm -rf /tmp/artefacts/journal_ext4/
 
 ### CRONTAB
 if [ $OS == 1 ]; then for user in $(cut -f1 -d: /etc/passwd); do echo Crontab user: "$user"; crontab -l -u "$user"|grep -vE '^#'; done > /tmp/artefacts/crontab ;fi
@@ -1518,14 +1582,14 @@ KHRhcmdldCwgb3B0aW9ucywgZmV0Y2hfZGF0YShvcHRpb25zLCBjb25maWcpLCBo
 aXN0b3J5KQo=
 EOF
 
-echo "Extract debscan info at $(date)"
-if which popularity-contest;then popularity-contest > /tmp/artefacts/popularity-contest;fi
-if [ $OS == 1 ]; then if which base64;then base64 -d /tmp/debsecan/debsecan_b64 >/tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;elif which openssl;then openssl base64 -d < /tmp/debsecan/debsecan_b64 /tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;fi;fi
-if which dpkg ;then if which debsecan ;then debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan; else /tmp/debsecan/debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan ;fi ;fi
-rm -rf /tmp/debsecan
-
-if which chkconfig;then chkconfig --list > /tmp/artefacts/chkconfig;fi
-if which yum;then yum list-security > /tmp/artefacts/yum-security;fi
+if [ $USE_DEBSCAN == 1 ]
+then
+  echo "Extract debscan info at $(date)"
+  if which popularity-contest;then popularity-contest > /tmp/artefacts/popularity-contest;fi
+  if [ $OS == 1 ]; then if which base64;then base64 -d /tmp/debsecan/debsecan_b64 >/tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;elif which openssl;then openssl base64 -d < /tmp/debsecan/debsecan_b64 /tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;fi;fi
+  if which dpkg ;then if which debsecan ;then debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan; else /tmp/debsecan/debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan ;fi ;fi
+  rm -rf /tmp/debsecan
+fi
 
 ### YPCAT
 if which ypcat;then ypcat passwd > /tmp/artefacts/ypcat-passwd;fi
@@ -1534,62 +1598,57 @@ if which ypcat;then ypcat passwd > /tmp/artefacts/ypcat-passwd;fi
 if which who;then who > /tmp/artefacts/who_cmd;fi
 if which finger;then finger > /tmp/artefacts/finger_cmd;fi
 
-### IPTABLES
-if which iptables-save;then iptables-save > /tmp/artefacts/iptables_rules.v4;fi
-if which ip6tables-save;then ip6tables-save > /tmp/artefacts/iptables_rules.v6;fi
-
 ## ACTIVE network
-echo "Extract active network info at $(date)"
-### DNS
-if which host;then
-  host www.google.fr > /tmp/artefacts/dns-result 2>&1
-  host www.google.fr 8.8.8.8 > /tmp/artefacts/dns-result-ext 2>&1
-  if which dnsdomainname; then
-    host -t all _ldap._tcp.dc._msdcs."$(dnsdomainname)" > /tmp/artefacts/dns-result-ad 2>&1
-    if which nc;then
-      nc -vvv -w 1 _ldap._tcp.dc._msdcs."$(dnsdomainname)" 389
+if [ $INFO_ACTIVE_NET == 1 ]
+then
+  echo "Extract active network info at $(date)"
+  ### DNS
+  if which host;then
+    host www.google.fr > /tmp/artefacts/dns-result 2>&1
+    host www.google.fr 8.8.8.8 > /tmp/artefacts/dns-result-ext 2>&1
+    if which dnsdomainname; then
+      host -t all _ldap._tcp.dc._msdcs."$(dnsdomainname)" > /tmp/artefacts/dns-result-ad 2>&1
+      if which nc;then
+        nc -vvv -w 1 _ldap._tcp.dc._msdcs."$(dnsdomainname)" 389
+      fi
+    fi
+  elif which dig;then
+    dig www.google.fr > /tmp/artefacts/dns-result 2>&1
+    dig @8.8.8.8 www.google.fr > /tmp/artefacts/dns-result-ext 2>&1
+    if which dnsdomainname; then
+      dig _ldap._tcp.dc._msdcs."$(dnsdomainname)" all > /tmp/artefacts/dns-result-ad 2>&1
+      if which nc;then
+        nc -vvv -w 1 _ldap._tcp.dc._msdcs."$(dnsdomainname)" 389
+      fi
+    fi
+  elif which ping;then
+    ping -c 1 -n www.google.fr > /tmp/artefacts/host-result 2>&1
+    if which dnsdomainname; then
+      ping -c 1 -n _ldap._tcp.dc._msdcs."$(dnsdomainname)" > /tmp/artefacts/dns-result-ad 2>&1
+      if which nc;then
+        nc -vvv -w 1 _ldap._tcp.dc._msdcs."$(dnsdomainname)" 389
+      fi
     fi
   fi
-elif which dig;then
-  dig www.google.fr > /tmp/artefacts/dns-result 2>&1
-  dig @8.8.8.8 www.google.fr > /tmp/artefacts/dns-result-ext 2>&1
-  if which dnsdomainname; then
-    dig _ldap._tcp.dc._msdcs."$(dnsdomainname)" all > /tmp/artefacts/dns-result-ad 2>&1
-    if which nc;then
-      nc -vvv -w 1 _ldap._tcp.dc._msdcs."$(dnsdomainname)" 389
-    fi
+  ### PING GOOGLE
+  if which ping;then 
+    ping -c 1 216.58.215.35 > /tmp/artefacts/ping-result 2>&1
   fi
-elif which ping;then
-  ping -c 1 -n www.google.fr > /tmp/artefacts/host-result 2>&1
-  if which dnsdomainname; then
-    ping -c 1 -n _ldap._tcp.dc._msdcs."$(dnsdomainname)" > /tmp/artefacts/dns-result-ad 2>&1
-    if which nc;then
-      nc -vvv -w 1 _ldap._tcp.dc._msdcs."$(dnsdomainname)" 389
-    fi
+  ### Internet access
+  if which wget;then
+    wget -dO- www.google.fr > /tmp/artefacts/neta-result 2>&1
+    wget -q -O - checkip.dyndns.org | sed -e 's/.*Current IP Address: //' -e 's/<.*$//' > /tmp/artefacts/ip-public 2>&1
+  elif which curl;then
+    curl -v www.google.fr > /tmp/artefacts/neta-result 2>&1
+    curl checkip.dyndns.org | sed -e 's/.*Current IP Address: //' -e 's/<.*$//' > /tmp/artefacts/ip-public 2>&1
+  elif which nc;then
+    echo -e "GET / HTTP/1.0\r\nHost: www.google.fr\r\n\r\n" | nc -vvv www.google.fr 80 > /tmp/artefacts/neta-result 2>&1
+    echo -e "GET / HTTP/1.0\r\nHost: checkip.dyndns.org\r\n\r\n" | nc -vvv checkip.dyndns.org 80 | sed -e 's/.*Current IP Address: //' -e 's/<.*$//' > /tmp/artefacts/ip-public 2>&1
   fi
+  ### TODO check proxy service 
+  ### ARP TABLE
+  if which arp;then arp > /tmp/artefacts/arp-table;fi
 fi
-
-### PING GOOGLE
-if which ping;then 
-  ping -c 1 216.58.215.35 > /tmp/artefacts/ping-result 2>&1
-fi
-
-### Internet access
-if which wget;then
-  wget -dO- www.google.fr > /tmp/artefacts/neta-result 2>&1
-  wget -q -O - checkip.dyndns.org | sed -e 's/.*Current IP Address: //' -e 's/<.*$//' > /tmp/artefacts/ip-public 2>&1
-elif which curl;then
-  curl -v www.google.fr > /tmp/artefacts/neta-result 2>&1
-  curl checkip.dyndns.org | sed -e 's/.*Current IP Address: //' -e 's/<.*$//' > /tmp/artefacts/ip-public 2>&1
-elif which nc;then
-  echo -e "GET / HTTP/1.0\r\nHost: www.google.fr\r\n\r\n" | nc -vvv www.google.fr 80 > /tmp/artefacts/neta-result 2>&1
-  echo -e "GET / HTTP/1.0\r\nHost: checkip.dyndns.org\r\n\r\n" | nc -vvv checkip.dyndns.org 80 | sed -e 's/.*Current IP Address: //' -e 's/<.*$//' > /tmp/artefacts/ip-public 2>&1
-fi
-
-### TODO check proxy service 
-
-### ARP TABLE
-if which arp;then arp > /tmp/artefacts/arp-table;fi
 
 ## MYSQL
 find /var/lib \( -fstype nfs -prune \) -o -name '*.frm' -o -name 'ib_logfile*' -o -name 'ibdata*'|tar -zcpvf /tmp/artefacts/mysqllog.tar.gz --files-from -
@@ -1598,52 +1657,54 @@ find /var/lib \( -fstype nfs -prune \) -o -name '*.frm' -o -name 'ib_logfile*' -
 if which arp;then virsh list --all > /tmp/artefacts/virsh;fi
 
 ## Yara scan
-echo "Scan and extract from yara rules at $(date)"
-if [ $OS == 1 ] && [ -f "/tmp/toolsEAL/tools/spyre_x64" ]
+if [ $YARA_SCAN == 1 ]
 then
-  MACHINE_TYPE=$(uname -m)
-  if [ "${MACHINE_TYPE}" == 'x86_64' ]; then
-    /tmp/toolsEAL/tools/spyre_x64 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
-    #TODO extract file
-  else
-    /tmp/toolsEAL/tools/spyre_x86 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
-    #TODO extract file
+  echo "Scan and extract from yara rules at $(date)"
+  if [ $OS == 1 ] && [ -f "/tmp/toolsEAL/tools/spyre_x64" ]
+  then
+    MACHINE_TYPE=$(uname -m)
+    if [ "${MACHINE_TYPE}" == 'x86_64' ]; then
+      /tmp/toolsEAL/tools/spyre_x64 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
+    else
+      /tmp/toolsEAL/tools/spyre_x86 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
+    fi
   fi
-fi
-if [ -f "/tmp/artefacts/yara_check.log" ]
-then
-  for path in $(grep 'YARA rule match' log.json |awk -F 'yara: ' '{print $2}'|awk -F ': ' '{print $1}'|sort -u); do
-    KEEPP=1
-    if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_deb-list_files > /dev/null
-    then
-      KEEPP=0
-    fi
-    if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_rpm-list_files > /dev/null
-    then
-      KEEPP=0
-    fi
-    if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-deb > /dev/null
-    then
+  if [ -f "/tmp/artefacts/yara_check.log" ] && [ $DUMP_YARA_MATCH == 1 ]
+  then
+    for path in $(grep 'YARA rule match' log.json |awk -F 'yara: ' '{print $2}'|awk -F ': ' '{print $1}'|sort -u); do
       KEEPP=1
-    fi
-    if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-rpm > /dev/null
-    then
-      KEEPP=1
-    fi
-    if [ $KEEPP == 1 ]
-    then
-      size=$(du -m "${path}" | cut -f 1)
-      if [ "$size" -le $EXTRACT_MAXSIZE ] && [ $YARA_EXTRACT_FILE == 1 ]
+      if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_deb-list_files > /dev/null
       then
-        tar vuf /tmp/artefacts/yara_file.tar "$path"
+        KEEPP=0
       fi
-      if [ ! -x "$(which md5sum)" ]; then
-        md5sum "$path" >> /tmp/artefacts/yara_file_hash
+      if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_rpm-list_files > /dev/null
+      then
+        KEEPP=0
       fi
-    fi
-  done
+      if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-deb > /dev/null
+      then
+        KEEPP=1
+      fi
+      if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-rpm > /dev/null
+      then
+        KEEPP=1
+      fi
+      if [ $KEEPP == 1 ]
+      then
+        size=$(du -m "${path}" | cut -f 1)
+        if [ "$size" -le $EXTRACT_MAXSIZE ]
+        then
+          tar vuf /tmp/artefacts/yara_file.tar "$path"
+        fi
+        if [ ! -x "$(which md5sum)" ]; then
+          md5sum "$path" >> /tmp/artefacts/yara_file_hash
+        fi
+      fi
+    done
+  fi
+  gzip /tmp/artefacts/yara_file.tar
 fi
-gzip /tmp/artefacts/yara_file.tar
+
 #clean
 if [ $OS == 1 ]; then tar zcvpf /tmp/artefacts-"$(hostname)".tgz /tmp/artefacts/;fi
 if [ $OS == 2 ]; then tar cpvf - /tmp/artefacts/ |gzip -c >/tmp/artefacts-"$(hostname)".tgz;fi
