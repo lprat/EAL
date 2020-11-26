@@ -152,7 +152,7 @@ fi
 if [ $MEM_PROC == 1 ]
 then
   #https://serverfault.com/questions/173999/dump-a-linux-processs-memory-to-file
-  procdump
+  procdump &
   YARA_RULES_MEM="noexists.yar"
 fi
 
