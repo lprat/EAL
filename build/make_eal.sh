@@ -111,6 +111,7 @@ rm -rf EAL
 ## change dir
 rm -rf tools
 mkdir tools
+mv yararules tools/
 cd tools/
 
 ## Download avml to try extract memory (https://github.com/microsoft/avml)
