@@ -79,19 +79,6 @@ procdump()
     done
 )
 
-# Function recover deleted file in directory
-delfile() {
-  for target in "${@}"; do
-    df=$(df "${target}"|tail -1)
-    fs=$(echo "$df" | awk '{print $1}')
-    if [[ $fs == "/dev"* ]]; then
-      rm=$(echo "$df" | awk '{print $NF}')
-      dir=${target#"$rm"}
-      debugfs -R 'ls -dl '"${dir}" "${fs}" 2>/dev/null | grep ' 0> '| awk -v myvar="$target" '{print myvar"/"$NF}'
-    fi
-  done
-}
-
 # Function aix get full path pid
 # ref: https://stackoverflow.com/questions/606041/how-do-i-get-the-path-of-a-process-in-unix-linux
 getPathByPid()
@@ -189,10 +176,58 @@ if [ $OS == 1 ];then
   fi
   if [ -x "$(which debugfs)" ] && [ $FILE_DELETED == 1 ] 
   then 
-    for path in $(find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print0|xargs -0 -n 100000 md5sum)
+    declare -a fstmp=()
+    declare -a mnttmp=()
+    declare -a sizex=()
+    declare -a keepx=()
+    while IFS= read -r line;do
+      if [[ ${line} =~ (.+)[[:space:]](.+) ]]; then
+        fstmp+=("${BASH_REMATCH[1]}")
+        mnttmp+=("${BASH_REMATCH[2]}")
+        char="/"
+        if [[ ${BASH_REMATCH[1]} == "/dev/"* ]]; then
+          keepx+=(1)
+        else
+          keepx+=(0)
+        fi
+        if [[ "${BASH_REMATCH[2]}" == "/" ]]; then
+          sizex+=("0")
+        else
+          sizex+=($(awk -F"${char}" '{print NF-1}' <<< "${BASH_REMATCH[2]}"))
+        fi
+      fi
+    done < <(df|awk '{print $1" "$NF}')
+    declare -a fslist=()
+    declare -a mounted=()
+    declare -a validfs=()
+    for i in {10..0}
     do
-      delfile "$path" >> /tmp/artefacts/files-deleted &
+      len=${#sizex[@]}
+      len=$((len-1))
+      for j in $(seq 0 $len); do
+       val=${sizex[$j]}
+       if [ $val == $i ]; then
+          fslist+=(${fstmp[$j]})
+          mounted+=(${mnttmp[$j]})
+          validfs+=(${keepx[$j]})
+       fi
+      done
     done
+    while IFS= read -r file;do
+      j=0
+      for i in "${mounted[@]}"; do
+        if [[ $file == "${i}"* ]]; then
+          if [ ${validfs[$j]} == 0 ]; then
+            break
+          fi
+          fxs=${fslist[$j]}
+          rxm=${file#"${i}"}
+          debugfs -R 'ls -dl '"${rxm}" "${fxs}" 2>/dev/null | grep ' 0> '| awk -v myvar="$file" '{print myvar"/"$NF}' >> /tmp/artefacts/files-deleted & 
+          break
+        fi
+        j=$((j+1))
+      done
+    done < <(find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type d -print)    
   fi
 fi
 
