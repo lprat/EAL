@@ -73,7 +73,7 @@ procdump()
         grep "rw-p" /proc/"$i"/maps | awk '{print $1}' | ( IFS="-"
         while read a b; do
           dd if=/proc/"$i"/mem bs="$( getconf PAGESIZE )" iflag=skip_bytes,count_bytes \
-             skip=$(( 0x$a )) count=$(( 0x$b - 0x$a )) | gzip > /tmp/artefacts/procs_mem_dump/"$i"/"$i"_mem_"$a".bin.gz
+             skip=$(( 0x$a )) count=$(( 0x$b - 0x$a )) | gzip > /tmp/artefacts/procs_mem_dump/"$i"/"$i"_mem_"$a".bin.gz &
         done )
       fi
     done
