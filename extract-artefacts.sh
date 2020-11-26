@@ -475,41 +475,6 @@ then
   done
   gzip /tmp/artefacts/proc_network_file.tar
 fi
-## Static file extract, extract max 5mo
-if [ $DUMP_ELF_STATIC == 1 ]
-then
-  echo "Extract static file without package at $(date)"
-  while IFS= read -r i;do
-    KEEPP=1
-    if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_deb-list_files > /dev/null
-    then
-      KEEPP=0
-    fi
-    if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_rpm-list_files > /dev/null
-    then
-      KEEPP=0
-    fi
-    if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-deb > /dev/null
-    then
-      KEEPP=1
-    fi
-    if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-rpm > /dev/null
-    then
-      KEEPP=1
-    fi
-    if [ $KEEPP == 1 ]
-    then
-      size=$(du -m "${i}" | cut -f 1)
-      if [ "$size" -le $EXTRACT_MAXSIZE ]; then
-        tar vuf /tmp/artefacts/static_file.tar "$i"
-      fi
-      if [ ! -x "$(which md5sum)" ]; then
-        md5sum "$i" >> /tmp/artefacts/static_file_hash
-      fi
-    fi
-  done  < <(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g')
-  gzip /tmp/artefacts/static_file.tar
-fi
 
 ## Extract binary integrity package broken
 if [ -f "/tmp/artefacts/packages-integrity-deb" ] && [ $DUMP_PKG_INTEGRITY == 1 ]
@@ -1743,8 +1708,46 @@ then
   fi
   gzip /tmp/artefacts/yara_file.tar
 fi
+
 echo "Wait end of process in background $(date)"
 wait
+
+## Static file extract, extract max 5mo
+if [ $DUMP_ELF_STATIC == 1 ]
+then
+  echo "Extract static file without package at $(date)"
+  while IFS= read -r i;do
+    KEEPP=1
+    if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_deb-list_files > /dev/null
+    then
+      KEEPP=0
+    fi
+    if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${i}" /tmp/artefacts/packages_rpm-list_files > /dev/null
+    then
+      KEEPP=0
+    fi
+    if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-deb > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${i}" /tmp/artefacts/packages-integrity-rpm > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ $KEEPP == 1 ]
+    then
+      size=$(du -m "${i}" | cut -f 1)
+      if [ "$size" -le $EXTRACT_MAXSIZE ]; then
+        tar vuf /tmp/artefacts/static_file.tar "$i"
+      fi
+      if [ ! -x "$(which md5sum)" ]; then
+        md5sum "$i" >> /tmp/artefacts/static_file_hash
+      fi
+    fi
+  done  < <(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g')
+  gzip /tmp/artefacts/static_file.tar
+fi
+
 echo "Archive result $(date)"
 #clean
 if [ $OS == 1 ]; then tar zcvpf /tmp/artefacts-"$(hostname)".tgz /tmp/artefacts/;fi
