@@ -1743,7 +1743,9 @@ then
   fi
   gzip /tmp/artefacts/yara_file.tar
 fi
+echo "Wait end of process in background $(date)"
 wait
+echo "Archive result $(date)"
 #clean
 if [ $OS == 1 ]; then tar zcvpf /tmp/artefacts-"$(hostname)".tgz /tmp/artefacts/;fi
 if [ $OS == 2 ]; then tar cpvf - /tmp/artefacts/ |gzip -c >/tmp/artefacts-"$(hostname)".tgz;fi
