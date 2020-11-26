@@ -165,69 +165,8 @@ if [ $OS == 1 ];then
   else
     find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + > /tmp/artefacts/all_files 
   fi
-  if [ $FILE_TYPE == 1 ];then 
-    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print > /tmp/artefacts/all_files_file
-    file -f /tmp/artefacts/all_files_file >> /tmp/artefacts/all_files2 &
-    rm /tmp/artefacts/all_files_file
-  fi
-  if [ -x "$(which md5sum)" ] && [ $FILE_MD5 == 1 ] 
-  then 
-    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print0|xargs -0 -n 100000 md5sum >> /tmp/artefacts/all_files2 &
-  fi
-  if [ -x "$(which debugfs)" ] && [ $FILE_DELETED == 1 ] 
-  then 
-    declare -a fstmp=()
-    declare -a mnttmp=()
-    declare -a sizex=()
-    declare -a keepx=()
-    while IFS= read -r line;do
-      if [[ ${line} =~ (.+)[[:space:]](.+) ]]; then
-        fstmp+=("${BASH_REMATCH[1]}")
-        mnttmp+=("${BASH_REMATCH[2]}")
-        char="/"
-        if [[ ${BASH_REMATCH[1]} == "/dev/"* ]]; then
-          keepx+=(1)
-        else
-          keepx+=(0)
-        fi
-        if [[ "${BASH_REMATCH[2]}" == "/" ]]; then
-          sizex+=("0")
-        else
-          sizex+=($(awk -F"${char}" '{print NF-1}' <<< "${BASH_REMATCH[2]}"))
-        fi
-      fi
-    done < <(df|awk '{print $1" "$NF}')
-    declare -a fslist=()
-    declare -a mounted=()
-    declare -a validfs=()
-    for i in {10..0}
-    do
-      len=${#sizex[@]}
-      len=$((len-1))
-      for j in $(seq 0 $len); do
-       val=${sizex[$j]}
-       if [ $val == $i ]; then
-          fslist+=(${fstmp[$j]})
-          mounted+=(${mnttmp[$j]})
-          validfs+=(${keepx[$j]})
-       fi
-      done
-    done
-    while IFS= read -r file;do
-      j=0
-      for i in "${mounted[@]}"; do
-        if [[ $file == "${i}"* ]]; then
-          if [ ${validfs[$j]} == 0 ]; then
-            break
-          fi
-          fxs=${fslist[$j]}
-          rxm=${file#"${i}"}
-          debugfs -R 'ls -dl '"${rxm}" "${fxs}" 2>/dev/null | grep ' 0> '| awk -v myvar="$file" '{print myvar"/"$NF}' >> /tmp/artefacts/files-deleted & 
-          break
-        fi
-        j=$((j+1))
-      done
-    done < <(find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type d -print)    
+  if [ $FILE_TYPE == 1 ] || [ $FILE_MD5 == 1 ] ;then 
+    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print > /tmp/artefacts/all_files_file &
   fi
 fi
 
@@ -236,88 +175,6 @@ then
   find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -type f -size -5M -exec file {} + > /tmp/artefacts/all_files_file
 fi
 if [ $OS == 2 ];then find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -ls > /tmp/artefacts/all_files;fi
-
-# General info
-echo "Extract General info at $(date)"
-{
-  echo -e "#####Artefact for forensic#####\nhost:"; 
-  hostname;
-  echo -e "\nUptime:\n-------";
-  uptime;
-  echo -e "\nUname:\n-------";
-  uname -a;
-  echo -e "-------\nusers:\n-------";
-  cat /etc/passwd;
-  echo -e "-------\nDate of /etc/passwd:\n-------";
-  istat /etc/passwd|grep -i last;
-  echo -e "-------\nHosts:\n-------";
-  cat /etc/hosts;
-} > /tmp/artefacts/general
-
-## HOME extract
-### Extract .*history*
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_history.tar "$homeuser"/.*history*;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-gzip /tmp/artefacts/home_history.tar
-### Extract .ssh/known_hosts and authorized_keys files 
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_known_hosts.tar "$homeuser"/.ssh/known_hosts files;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_known_hosts.tar "$homeuser"/.ssh/authorized_keys files;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-gzip /tmp/artefacts/home_known_hosts.tar
-{
-echo -e "#####Artefact Home Hidden File#####\n";
-while IFS= read -r homeuser;do ls -laR "$homeuser"/.[^.]* ;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-} > /tmp/artefacts/home_hidden
-{
-echo -e "#####Artefact Home ssh keys#####\n";
-while IFS= read -r homeuser;do ls -laR "$homeuser"/.ssh/ ;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-} > /tmp/artefacts/ssh_keys
-### Browser & cache
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.cache;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.mozilla;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.java/deployment/cache/;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.dropbox/*.db*;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.npm/;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.recently-used*;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.wget-hsts;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.local/share/zeitgeist/activity.sqlite;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.local/share/zeitgeist/activity.sqlite-wal;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-gzip /tmp/artefacts/cache_home.tar
-
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.bashrc;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.bash_profile;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.bash_logout;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.profile;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.cshrc;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.ksh;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.tcsh;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.zlogin;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.zlogout;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.zprofile;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.logout;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.login;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.k5login;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-gzip /tmp/artefacts/bash_home.tar
-
-## tomcat extract pass
-if grep 'tomcat-users.xml\:' /tmp/artefacts/all_files >/dev/null;then grep 'tomcat-users.xml\:' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g' | tar -zcvpf /tmp/artefacts/tomcat-passwd.tar.gz --files-from -;fi
-
-## Docker
-echo -e "#####Artefact docker#####\n" > /tmp/artefacts/dockers
-if which docker; then docker images >> /tmp/artefacts/dockers; docker ps -a >> /tmp/artefacts/dockers; for id in $(docker ps -a|awk '{print $1}'|sed '1d');do echo -e "\nDocker ID $id" >> /tmp/artefacts/dockers ; docker inspect "$id" >> /tmp/artefacts/dockers ;done ;fi
-if [ $OS == 1 ] && [ $DUMP_DOCKER == 1 ]
-then 
-  find /var/lib/docker/containers -name '*.json' -o -name '*.log' | tar -zcvpf /tmp/artefacts/docker.tar.gz --files-from -
-fi
-
-## Extract /etc
-if [ $OS == 1 ] && [ $DUMP_ETC == 1 ]; then tar zcpvf /tmp/artefacts/etc.tgz /etc/ ;fi
-if [ $OS == 2 ] && [ $DUMP_ETC == 1 ]; then tar cpvf  - /etc/| gzip -c >/tmp/artefacts/etc.tgz;fi
-
-## Extract log /var/log/ & /run/log
-if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then tar zcpvf /tmp/artefacts/varlog.tgz /var/log/;fi
-if [ $OS == 2 ] && [ $DUMP_LOG == 1 ]; then tar cpvf  - /var/log/| gzip -c >/tmp/artefacts/varlog.tgz;fi
-if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then tar zcpvf /tmp/artefacts/runlog.tgz /run/log/;fi
-if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then find / -path /run/log -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o -name '*.log' -o -name '*.log.*' -o -name 'catalina.out' |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
-
 
 ## Network info
 if [ $NETWORK_INFO == 1 ]
@@ -357,62 +214,6 @@ then
   ### Handles
   lsof > /tmp/artefacts/process_lsof
   if [ $OS == 2 ];then for p in /proc/[0-9]*;do getPathByPid $(echo $p|awk -F '/' '{print $NF}') ;done ;fi
-fi 
-
-## Kernel info
-if [ $KERNEL_INFO == 1 ]
-then
-  echo "Extract kernel info at $(date)"
-  ### Modules
-  if [ $OS == 1 ]; then awk '{ print $1 }' /proc/modules | xargs modinfo | grep filename | awk '{ print $2 }' | sort > /tmp/artefacts/kernel_modules;fi
-  if [ $OS == 2 ]; then genkex > /tmp/artefacts/kernel_modules;fi
-  #### Verify not writable
-  if [ $OS == 1 ]; then 
-    while IFS= read -r path;do ls -l "$path" >> /tmp/artefacts/kernel_modules_rw;done < /tmp/artefacts/kernel_modules
-  fi
-  if [ $OS == 2 ]; then 
-    for path in $(genkex|awk '{print $NF}');do ls -l "$path" >> /tmp/artefacts/kernel_modules_rw;done
-  fi
-  ### SYSCTL
-  if which sysctl;then sysctl -a > /tmp/artefacts/sysctl;fi
-  ### SSDT
-  if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
-    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/ssdt
-  else
-    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=ctime {} \; > /tmp/artefacts/ssdt
-    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=atime {} \; >> /tmp/artefacts/ssdt
-    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time {} \; >> /tmp/artefacts/ssdt
-  fi
-  ### SYS CONF
-  mkdir /tmp/artefacts/conf_sys/
-  if [ -f  /proc/sys/kernel/randomize_va_space ]; then cp /proc/sys/kernel/randomize_va_space /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ]; then cp /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/kernel/bootloader_type ]; then cp /proc/sys/kernel/bootloader_type /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/kernel/bootloader_version ]; then cp /proc/sys/kernel/bootloader_version /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/kernel/kexec_load_disabled ]; then cp /proc/sys/kernel/kexec_load_disabled /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/kernel/modules_disabled ]; then cp /proc/sys/kernel/modules_disabled /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/kernel/tainted ]; then cp /proc/sys/kernel/tainted /tmp/artefacts/conf_sys/;fi
-  find /proc/sys/net/ipv4/ -name 'ip_forward' -o -name 'mc_forwarding' -o -name 'rp_filter' -o -name 'log_martians' -o -name 'accept_redirects' -o -name 'secure_redirects' -o -name 'send_redirects'|tar -zcpvf /tmp/artefacts/conf_sys/net_ipv4.tar.gz --files-from -
-  find /proc/sys/net/ -name 'forwarding' -o -name 'accept_source_route'|tar -zcpvf /tmp/artefacts/conf_sys/net_ip.tar.gz --files-from -
-  if [ -f  /proc/net/arp ]; then cp /proc/net/arp /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/mounts ]; then cp /proc/mounts /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/kernel/dmesg_restrict ]; then cp /proc/sys/kernel/dmesg_restrict /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/kernel/kptr_restrict ]; then cp /proc/sys/kernel/kptr_restrict /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/fs/suid_dumpable ]; then cp /proc/sys/fs/suid_dumpable /tmp/artefacts/conf_sys/;fi
-  if [ -f  /proc/sys/net/ipv4/tcp_syncookies ]; then cp /proc/sys/net/ipv4/tcp_syncookies /tmp/artefacts/conf_sys/;fi
-  if [ -f  /sys/kernel/security/lsm ]; then cat /sys/kernel/security/lsm > /tmp/artefacts/security-lsm;fi
-  ### apparmor
-  if which aa-status;then
-    aa-status > /tmp/artefacts/aa-status
-  fi
-  ### selinux
-  if which sestatus;then
-    sestatus > /tmp/artefacts/sestatus
-  fi
-  ### tomoyo
-  if which tomoyo-savepolicy;then
-    tomoyo-savepolicy -d > /tmp/artefacts/tomoyo-policy
-  fi
 fi
 
 ## Package (ref: http://gedsismik.free.fr/darkdoc/article.php?id=64)
@@ -470,6 +271,7 @@ then
       fi
       if [ ! -x "$(which md5sum)" ]; then
         md5sum "$path" >> /tmp/artefacts/proc_network_file_hash
+        file "$path" >> /tmp/artefacts/proc_network_file_hash
       fi
     fi
   done
@@ -487,6 +289,7 @@ then
     fi
     if [ ! -x "$(which md5sum)" ]; then
       md5sum "$path" >> /tmp/artefacts/bin_package_suspect_hash
+      file "$path" >> /tmp/artefacts/bin_package_suspect_hash
     fi
   done
 fi
@@ -500,10 +303,95 @@ then
     fi
     if [ ! -x "$(which md5sum)" ]; then
       md5sum "$path" >> /tmp/artefacts/bin_package_suspect_hash
+      file "$path" >> /tmp/artefacts/bin_package_suspect_hash
     fi
   done
 fi
 gzip /tmp/artefacts/bin_package_suspect.tar
+
+# Get FS - info
+if [ $FILE_TYPE == 1 ] || [ $FILE_MD5 == 1 ]
+then
+  #wait file /tmp/artefacts/all_files_file
+  wait
+  #remove package file
+  if [ -f "/tmp/artefacts/packages_deb-list_files" ] ; then
+    grep -v -x -f /tmp/artefacts/packages_deb-list_files /tmp/artefacts/all_files_file > /tmp/artefacts/all_files_file2
+    mv /tmp/artefacts/all_files_file2 /tmp/artefacts/all_files_file
+  fi
+  if [ -f "/tmp/artefacts/packages_rpm-list_files" ] ; then
+    grep -v -x -f /tmp/artefacts/packages_rpm-list_files /tmp/artefacts/all_files_file > /tmp/artefacts/all_files_file2
+    mv /tmp/artefacts/all_files_file2 /tmp/artefacts/all_files_file
+  fi
+fi
+if [ $FILE_TYPE == 1 ];then
+  echo "Get file type info at $(date)"
+  file -f /tmp/artefacts/all_files_file >> /tmp/artefacts/all_files2 &
+fi
+if [ -x "$(which md5sum)" ] && [ $FILE_MD5 == 1 ] 
+then
+  echo "Get md5sum info at $(date)"
+  while IFS= read -r line 
+  do 
+    md5sum "$line" 
+   done < /tmp/artefacts/all_files_file >> /tmp/artefacts/all_files2 &
+fi
+  if [ -x "$(which debugfs)" ] && [ $FILE_DELETED == 1 ] 
+  then 
+    declare -a fstmp=()
+    declare -a mnttmp=()
+    declare -a sizex=()
+    declare -a keepx=()
+    while IFS= read -r line;do
+      if [[ ${line} =~ (.+)[[:space:]](.+) ]]; then
+        fstmp+=("${BASH_REMATCH[1]}")
+        mnttmp+=("${BASH_REMATCH[2]}")
+        char="/"
+        if [[ ${BASH_REMATCH[1]} == "/dev/"* ]]; then
+          keepx+=(1)
+        else
+          keepx+=(0)
+        fi
+        if [[ "${BASH_REMATCH[2]}" == "/" ]]; then
+          sizex+=("0")
+        else
+          sizex+=($(awk -F"${char}" '{print NF-1}' <<< "${BASH_REMATCH[2]}"))
+        fi
+      fi
+    done < <(df|awk '{print $1" "$NF}')
+    declare -a fslist=()
+    declare -a mounted=()
+    declare -a validfs=()
+    for i in {10..0}
+    do
+      len=${#sizex[@]}
+      len=$((len-1))
+      for j in $(seq 0 $len); do
+       val=${sizex[$j]}
+       if [ $val == $i ]; then
+          fslist+=(${fstmp[$j]})
+          mounted+=(${mnttmp[$j]})
+          validfs+=(${keepx[$j]})
+       fi
+      done
+    done
+    while IFS= read -r file;do
+      j=0
+      for i in "${mounted[@]}"; do
+        if [[ $file == "${i}"* ]]; then
+          if [ ${validfs[$j]} == 0 ]; then
+            break
+          fi
+          fxs=${fslist[$j]}
+          rxm=${file#"${i}"}
+          debugfs -R 'ls -dl '"${rxm}" "${fxs}" 2>/dev/null | grep ' 0> '| awk -v myvar="$file" '{print myvar"/"$NF}' >> /tmp/artefacts/files-deleted &
+          break
+        fi
+        j=$((j+1))
+      done
+    done < <(find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type d -print) &
+  fi
+fi
 
 ## Extract systemd, rc.local, init.d
 if [ $AUTORUN_INFO == 1 ]
@@ -524,71 +412,6 @@ then
   if [ $OS == 1 ]; then ls -la /etc/rc.local >> /tmp/artefacts/services_rclocal;fi
   grep -iER '(^|\s+)DAEMON\=|(^|\s+)NAME\=|(^|\s+)COMMAND\=|(^|\S+)[A-Z][A-Z0-9]*_BIN\=' /etc/init.d/ > /tmp/artefacts/services-initd_exe
 fi
-
-## Divers Info
-echo "Extract some info at $(date)"
-### trap list
-{
-echo -e "#####Artefact Trap#####\n";
-trap -p
-} > /tmp/artefacts/trap
-
-### ENV
-{
-echo -e "#####Artefact Env#####\n";
-for user in $(cut -f1 -d: /etc/passwd); do echo Env for user: "$user"; su - "$user" -c env; done
-} > /tmp/artefacts/env
-
-### Clipboard
-{
-echo -e "#####Artefact Clipboard#####\n";
-if which xsel; then for user in $(cut -f1 -d: /etc/passwd); do echo clipboard for user: "$user"; su - "$user" -c xsel; done ;fi
-} > /tmp/artefacts/clipboard
-
-### Memory & Mount
-df > /tmp/artefacts/disk_df
-mount > /tmp/artefacts/disk_mount
-for path in $(mount|grep -i tmpfs|grep -v ',noexec,'|awk '{out=""; for(i=0;i<=NF;i++){out=out"\n"$i}; print out}'|grep '\/'|grep -v 'tmpfs'|grep -vE '/dev$'); do 
-  if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
-    find "$path" -type f -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; >> /tmp/artefacts/files_in_tmpfs
-  else
-    {
-    ls -laR --full-time --time=ctime "$path";
-    ls -laR --full-time --time=atime "$path";
-    ls -laR --full-time "$path";
-   } >> /tmp/artefacts/files_in_tmpfs
-  fi
-done
-if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
-    find /dev -type f -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/files_in_dev
-    if which md5sum;then
-      find /dev -type f -exec md5sum {} \; >> /tmp/artefacts/files_in_dev
-    fi
-else
-    {
-    find /dev -type f -exec ls -dits --full-time --time=ctime {} \; 
-    find /dev -type f -exec ls -dits --full-time --time=atime {} \; 
-    find /dev -type f -exec ls -dits --full-time {} \; 
-    } >> /tmp/artefacts/files_in_dev
-    if which md5sum;then
-      find /dev -type f -exec md5sum {} \; >> /tmp/artefacts/files_in_dev
-    fi
-fi
-
-### CRONTAB
-if [ $OS == 1 ]; then for user in $(cut -f1 -d: /etc/passwd); do echo Crontab user: "$user"; crontab -l -u "$user"|grep -vE '^#'; done > /tmp/artefacts/crontab ;fi
-if [ $OS == 1 ]; then for path in $(for user in $(cut -f1 -d: /etc/passwd); do if crontab -l -u "$user" >/dev/null 2>1;then crontab -l -u "$user"|grep -E '^[0-9\*]'|sed 's/>.*//g'|awk '{out=""; for(i=6;i<=NF;i++){out=out"\n"$i}; print out}'|grep '^/';fi; done);do if [[ -f "$path" ]]; then ls -la "$path" >> /tmp/artefacts/crontab_rw;fi;done;fi
-if [ $OS == 2 ]; then for user in $(cut -f1 -d: /etc/passwd);  do echo Crontab user: "$user"; crontab -l "$user"|grep -vE '^#'; done > /tmp/artefacts/crontab ;fi
-if [ $OS == 2 ]; then for path in $(for user in $(cut -f1 -d: /etc/passwd); do if crontab -l "$user" >/dev/null 2>1;then crontab -l "$user"|grep -E '^[0-9\*]'|sed 's/>.*//g'|awk '{out=""; for(i=6;i<=NF;i++){out=out"\n"$i}; print out}'|grep '^/';fi; done);do if [[ -f "$path" ]]; then ls -la "$path" >> /tmp/artefacts/crontab_rw ;fi;done;fi
-#### Spool cron
-if [ $OS == 1 ]; then tar zcvpf /tmp/artefacts/spool_cron.tgz /var/spool/cron;fi
-if [ $OS == 2 ]; then tar cvpf - /var/spool/cron|gzip -c >/tmp/artefacts/spool_cron.tgz;fi
-### SUDOERS
-if [ $OS == 1 ]; then for user in $(cut -f1 -d: /etc/passwd); do echo Sudo user: "$user"; sudo -l -U "$user"|grep -vE '^#'; done > /tmp/artefacts/sudoers ;fi
-if [ $OS == 2 ]; then for user in $(cut -f1 -d: /etc/passwd); do echo Sudo user: "$user"; sudo -l -u "$user"|grep -vE '^#'; done > /tmp/artefacts/sudoers ;fi
-
-### LAST command
-if which last;then last > /tmp/artefacts/last_cmd;fi
 
 ##process/services bonus
 mkdir /tmp/debsecan
@@ -1591,8 +1414,13 @@ then
   echo "Extract debscan info at $(date)"
   if which popularity-contest;then popularity-contest > /tmp/artefacts/popularity-contest;fi
   if [ $OS == 1 ]; then if which base64;then base64 -d /tmp/debsecan/debsecan_b64 >/tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;elif which openssl;then openssl base64 -d < /tmp/debsecan/debsecan_b64 /tmp/debsecan/debsecan;chmod +x /tmp/debsecan/debsecan;fi;fi
-  if which dpkg ;then if which debsecan ;then debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan; else /tmp/debsecan/debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan ;fi ;fi
-  rm -rf /tmp/debsecan
+  if which dpkg ;then
+    if which debsecan ;then
+      debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan &
+    else
+      /tmp/debsecan/debsecan --source=$URL_GENERIC > /tmp/artefacts/debsecan &
+    fi
+  fi
 fi
 
 ### YPCAT
@@ -1663,51 +1491,219 @@ if which arp;then virsh list --all > /tmp/artefacts/virsh;fi
 ## Yara scan
 if [ $YARA_SCAN == 1 ]
 then
-  echo "Scan and extract from yara rules at $(date)"
+  echo "Scan with yara rules at $(date)"
   if [ $OS == 1 ] && [ -f "/tmp/toolsEAL/tools/spyre_x64" ]
   then
     MACHINE_TYPE=$(uname -m)
     if [ "${MACHINE_TYPE}" == 'x86_64' ]; then
-      /tmp/toolsEAL/tools/spyre_x64 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
+      /tmp/toolsEAL/tools/spyre_x64 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN &
     else
-      /tmp/toolsEAL/tools/spyre_x86 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN
+      /tmp/toolsEAL/tools/spyre_x86 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN &
     fi
   fi
-  if [ -f "/tmp/artefacts/yara_check.log" ] && [ $DUMP_YARA_MATCH == 1 ]
-  then
-    for path in $(grep 'YARA rule match' log.json |awk -F 'yara: ' '{print $2}'|awk -F ': ' '{print $1}'|sort -u); do
-      KEEPP=1
-      if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_deb-list_files > /dev/null
-      then
-        KEEPP=0
-      fi
-      if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_rpm-list_files > /dev/null
-      then
-        KEEPP=0
-      fi
-      if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-deb > /dev/null
-      then
-        KEEPP=1
-      fi
-      if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-rpm > /dev/null
-      then
-        KEEPP=1
-      fi
-      if [ $KEEPP == 1 ]
-      then
-        size=$(du -m "${path}" | cut -f 1)
-        if [ "$size" -le $EXTRACT_MAXSIZE ]
-        then
-          tar vuf /tmp/artefacts/yara_file.tar "$path"
-        fi
-        if [ ! -x "$(which md5sum)" ]; then
-          md5sum "$path" >> /tmp/artefacts/yara_file_hash
-        fi
-      fi
-    done
-  fi
-  gzip /tmp/artefacts/yara_file.tar
 fi
+
+## Divers Info
+echo "Extract some info at $(date)"
+### trap list
+{
+echo -e "#####Artefact Trap#####\n";
+trap -p
+} > /tmp/artefacts/trap
+
+### ENV
+{
+echo -e "#####Artefact Env#####\n";
+for user in $(cut -f1 -d: /etc/passwd); do echo Env for user: "$user"; su - "$user" -c env; done
+} > /tmp/artefacts/env
+
+### Clipboard
+{
+echo -e "#####Artefact Clipboard#####\n";
+if which xsel; then for user in $(cut -f1 -d: /etc/passwd); do echo clipboard for user: "$user"; su - "$user" -c xsel; done ;fi
+} > /tmp/artefacts/clipboard
+
+### Memory & Mount
+df > /tmp/artefacts/disk_df
+mount > /tmp/artefacts/disk_mount
+for path in $(mount|grep -i tmpfs|grep -v ',noexec,'|awk '{out=""; for(i=0;i<=NF;i++){out=out"\n"$i}; print out}'|grep '\/'|grep -v 'tmpfs'|grep -vE '/dev$'); do 
+  if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
+    find "$path" -type f -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; >> /tmp/artefacts/files_in_tmpfs
+  else
+    {
+    ls -laR --full-time --time=ctime "$path";
+    ls -laR --full-time --time=atime "$path";
+    ls -laR --full-time "$path";
+   } >> /tmp/artefacts/files_in_tmpfs
+  fi
+done
+if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
+    find /dev -type f -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/files_in_dev
+    if which md5sum;then
+      find /dev -type f -exec md5sum {} \; >> /tmp/artefacts/files_in_dev
+    fi
+else
+    {
+    find /dev -type f -exec ls -dits --full-time --time=ctime {} \; 
+    find /dev -type f -exec ls -dits --full-time --time=atime {} \; 
+    find /dev -type f -exec ls -dits --full-time {} \; 
+    } >> /tmp/artefacts/files_in_dev
+    if which md5sum;then
+      find /dev -type f -exec md5sum {} \; >> /tmp/artefacts/files_in_dev
+    fi
+fi
+
+### CRONTAB
+if [ $OS == 1 ]; then for user in $(cut -f1 -d: /etc/passwd); do echo Crontab user: "$user"; crontab -l -u "$user"|grep -vE '^#'; done > /tmp/artefacts/crontab ;fi
+if [ $OS == 1 ]; then for path in $(for user in $(cut -f1 -d: /etc/passwd); do if crontab -l -u "$user" >/dev/null 2>1;then crontab -l -u "$user"|grep -E '^[0-9\*]'|sed 's/>.*//g'|awk '{out=""; for(i=6;i<=NF;i++){out=out"\n"$i}; print out}'|grep '^/';fi; done);do if [[ -f "$path" ]]; then ls -la "$path" >> /tmp/artefacts/crontab_rw;fi;done;fi
+if [ $OS == 2 ]; then for user in $(cut -f1 -d: /etc/passwd);  do echo Crontab user: "$user"; crontab -l "$user"|grep -vE '^#'; done > /tmp/artefacts/crontab ;fi
+if [ $OS == 2 ]; then for path in $(for user in $(cut -f1 -d: /etc/passwd); do if crontab -l "$user" >/dev/null 2>1;then crontab -l "$user"|grep -E '^[0-9\*]'|sed 's/>.*//g'|awk '{out=""; for(i=6;i<=NF;i++){out=out"\n"$i}; print out}'|grep '^/';fi; done);do if [[ -f "$path" ]]; then ls -la "$path" >> /tmp/artefacts/crontab_rw ;fi;done;fi
+#### Spool cron
+if [ $OS == 1 ]; then tar zcvpf /tmp/artefacts/spool_cron.tgz /var/spool/cron;fi
+if [ $OS == 2 ]; then tar cvpf - /var/spool/cron|gzip -c >/tmp/artefacts/spool_cron.tgz;fi
+### SUDOERS
+if [ $OS == 1 ]; then for user in $(cut -f1 -d: /etc/passwd); do echo Sudo user: "$user"; sudo -l -U "$user"|grep -vE '^#'; done > /tmp/artefacts/sudoers ;fi
+if [ $OS == 2 ]; then for user in $(cut -f1 -d: /etc/passwd); do echo Sudo user: "$user"; sudo -l -u "$user"|grep -vE '^#'; done > /tmp/artefacts/sudoers ;fi
+
+### LAST command
+if which last;then last > /tmp/artefacts/last_cmd;fi
+
+## Kernel info
+if [ $KERNEL_INFO == 1 ]
+then
+  echo "Extract kernel info at $(date)"
+  ### Modules
+  if [ $OS == 1 ]; then awk '{ print $1 }' /proc/modules | xargs modinfo | grep filename | awk '{ print $2 }' | sort > /tmp/artefacts/kernel_modules;fi
+  if [ $OS == 2 ]; then genkex > /tmp/artefacts/kernel_modules;fi
+  #### Verify not writable
+  if [ $OS == 1 ]; then 
+    while IFS= read -r path;do ls -l "$path" >> /tmp/artefacts/kernel_modules_rw;done < /tmp/artefacts/kernel_modules
+  fi
+  if [ $OS == 2 ]; then 
+    for path in $(genkex|awk '{print $NF}');do ls -l "$path" >> /tmp/artefacts/kernel_modules_rw;done
+  fi
+  ### SYSCTL
+  if which sysctl;then sysctl -a > /tmp/artefacts/sysctl;fi
+  ### SSDT
+  if [ -x "$(which stat)" ] && [[ $TESTSTAT == "STAT:"* ]] ; then
+    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec stat -c 'STAT:%i|%b|%A|%h|%U|%G|%s|%t|%T|%w|%x|%y|%z|%n|%N' {} \; > /tmp/artefacts/ssdt
+  else
+    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=ctime {} \; > /tmp/artefacts/ssdt
+    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time --time=atime {} \; >> /tmp/artefacts/ssdt
+    find /sys/firmware/acpi/tables/ -iname 'SSDT*' -exec ls -dits --full-time {} \; >> /tmp/artefacts/ssdt
+  fi
+  ### SYS CONF
+  mkdir /tmp/artefacts/conf_sys/
+  if [ -f  /proc/sys/kernel/randomize_va_space ]; then cp /proc/sys/kernel/randomize_va_space /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ]; then cp /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/bootloader_type ]; then cp /proc/sys/kernel/bootloader_type /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/bootloader_version ]; then cp /proc/sys/kernel/bootloader_version /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/kexec_load_disabled ]; then cp /proc/sys/kernel/kexec_load_disabled /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/modules_disabled ]; then cp /proc/sys/kernel/modules_disabled /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/tainted ]; then cp /proc/sys/kernel/tainted /tmp/artefacts/conf_sys/;fi
+  find /proc/sys/net/ipv4/ -name 'ip_forward' -o -name 'mc_forwarding' -o -name 'rp_filter' -o -name 'log_martians' -o -name 'accept_redirects' -o -name 'secure_redirects' -o -name 'send_redirects'|tar -zcpvf /tmp/artefacts/conf_sys/net_ipv4.tar.gz --files-from -
+  find /proc/sys/net/ -name 'forwarding' -o -name 'accept_source_route'|tar -zcpvf /tmp/artefacts/conf_sys/net_ip.tar.gz --files-from -
+  if [ -f  /proc/net/arp ]; then cp /proc/net/arp /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/mounts ]; then cp /proc/mounts /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/dmesg_restrict ]; then cp /proc/sys/kernel/dmesg_restrict /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/kernel/kptr_restrict ]; then cp /proc/sys/kernel/kptr_restrict /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/fs/suid_dumpable ]; then cp /proc/sys/fs/suid_dumpable /tmp/artefacts/conf_sys/;fi
+  if [ -f  /proc/sys/net/ipv4/tcp_syncookies ]; then cp /proc/sys/net/ipv4/tcp_syncookies /tmp/artefacts/conf_sys/;fi
+  if [ -f  /sys/kernel/security/lsm ]; then cat /sys/kernel/security/lsm > /tmp/artefacts/security-lsm;fi
+  ### apparmor
+  if which aa-status;then
+    aa-status > /tmp/artefacts/aa-status
+  fi
+  ### selinux
+  if which sestatus;then
+    sestatus > /tmp/artefacts/sestatus
+  fi
+  ### tomoyo
+  if which tomoyo-savepolicy;then
+    tomoyo-savepolicy -d > /tmp/artefacts/tomoyo-policy
+  fi
+fi
+
+## HOME extract
+### Extract .*history*
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_history.tar "$homeuser"/.*history*;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+gzip /tmp/artefacts/home_history.tar
+### Extract .ssh/known_hosts and authorized_keys files 
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_known_hosts.tar "$homeuser"/.ssh/known_hosts files;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_known_hosts.tar "$homeuser"/.ssh/authorized_keys files;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+gzip /tmp/artefacts/home_known_hosts.tar
+{
+echo -e "#####Artefact Home Hidden File#####\n";
+while IFS= read -r homeuser;do ls -laR "$homeuser"/.[^.]* ;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+} > /tmp/artefacts/home_hidden
+{
+echo -e "#####Artefact Home ssh keys#####\n";
+while IFS= read -r homeuser;do ls -laR "$homeuser"/.ssh/ ;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+} > /tmp/artefacts/ssh_keys
+### Browser & cache
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.cache;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.mozilla;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.java/deployment/cache/;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.dropbox/*.db*;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.npm/;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.recently-used*;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.wget-hsts;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.local/share/zeitgeist/activity.sqlite;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/cache_home.tar "$homeuser"/.local/share/zeitgeist/activity.sqlite-wal;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+gzip /tmp/artefacts/cache_home.tar
+
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.bashrc;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.bash_profile;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.bash_logout;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.profile;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.cshrc;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.ksh;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.tcsh;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.zlogin;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.zlogout;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.zprofile;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.logout;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.login;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/bash_home.tar "$homeuser"/.k5login;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+gzip /tmp/artefacts/bash_home.tar
+
+## tomcat extract pass
+if grep 'tomcat-users.xml\:' /tmp/artefacts/all_files >/dev/null;then grep 'tomcat-users.xml\:' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g' | tar -zcvpf /tmp/artefacts/tomcat-passwd.tar.gz --files-from -;fi
+
+## Docker
+echo -e "#####Artefact docker#####\n" > /tmp/artefacts/dockers
+if which docker; then docker images >> /tmp/artefacts/dockers; docker ps -a >> /tmp/artefacts/dockers; for id in $(docker ps -a|awk '{print $1}'|sed '1d');do echo -e "\nDocker ID $id" >> /tmp/artefacts/dockers ; docker inspect "$id" >> /tmp/artefacts/dockers ;done ;fi
+if [ $OS == 1 ] && [ $DUMP_DOCKER == 1 ]
+then 
+  find /var/lib/docker/containers -name '*.json' -o -name '*.log' | tar -zcvpf /tmp/artefacts/docker.tar.gz --files-from -
+fi
+
+## Extract /etc
+if [ $OS == 1 ] && [ $DUMP_ETC == 1 ]; then tar zcpvf /tmp/artefacts/etc.tgz /etc/ ;fi
+if [ $OS == 2 ] && [ $DUMP_ETC == 1 ]; then tar cpvf  - /etc/| gzip -c >/tmp/artefacts/etc.tgz;fi
+
+## Extract log /var/log/ & /run/log
+if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then tar zcpvf /tmp/artefacts/varlog.tgz /var/log/;fi
+if [ $OS == 2 ] && [ $DUMP_LOG == 1 ]; then tar cpvf  - /var/log/| gzip -c >/tmp/artefacts/varlog.tgz;fi
+if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then tar zcpvf /tmp/artefacts/runlog.tgz /run/log/;fi
+if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then find / -path /run/log -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o -name '*.log' -o -name '*.log.*' -o -name 'catalina.out' |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
+
+# General info
+echo "Extract General info at $(date)"
+{
+  echo -e "#####Artefact for forensic#####\nhost:"; 
+  hostname;
+  echo -e "\nUptime:\n-------";
+  uptime;
+  echo -e "\nUname:\n-------";
+  uname -a;
+  echo -e "-------\nusers:\n-------";
+  cat /etc/passwd;
+  echo -e "-------\nDate of /etc/passwd:\n-------";
+  istat /etc/passwd|grep -i last;
+  echo -e "-------\nHosts:\n-------";
+  cat /etc/hosts;
+} > /tmp/artefacts/general
 
 echo "Wait end of process in background $(date)"
 wait
@@ -1746,10 +1742,48 @@ then
     fi
   done  < <(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g')
   gzip /tmp/artefacts/static_file.tar
+  
+## Yara dump match
+if [ -f "/tmp/artefacts/yara_check.log" ] && [ $DUMP_YARA_MATCH == 1 ]
+then
+  echo "Extract from yara rules at $(date)"
+  for path in $(grep 'YARA rule match' log.json |awk -F 'yara: ' '{print $2}'|awk -F ': ' '{print $1}'|sort -u); do
+    KEEPP=1
+    if [ -f "/tmp/artefacts/packages_deb-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_deb-list_files > /dev/null
+    then
+      KEEPP=0
+    fi
+    if [ -f "/tmp/artefacts/packages_rpm-list_files" ] && grep -F "${path}" /tmp/artefacts/packages_rpm-list_files > /dev/null
+    then
+      KEEPP=0
+    fi
+    if [ -f "/tmp/artefacts/packages-integrity-deb" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-deb > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ -f "/tmp/artefacts/packages-integrity-rpm" ] && grep -F "${path}" /tmp/artefacts/packages-integrity-rpm > /dev/null
+    then
+      KEEPP=1
+    fi
+    if [ $KEEPP == 1 ]
+    then
+      size=$(du -m "${path}" | cut -f 1)
+      if [ "$size" -le $EXTRACT_MAXSIZE ]
+      then
+        tar vuf /tmp/artefacts/yara_file.tar "$path"
+      fi
+      if [ ! -x "$(which md5sum)" ]; then
+        md5sum "$path" >> /tmp/artefacts/yara_file_hash
+      fi
+    fi
+  done
+  gzip /tmp/artefacts/yara_file.tar
 fi
 
 echo "Archive result $(date)"
 #clean
+rm /tmp/artefacts/all_files_file
+rm -rf /tmp/debsecan
 if [ $OS == 1 ]; then tar zcvpf /tmp/artefacts-"$(hostname)".tgz /tmp/artefacts/;fi
 if [ $OS == 2 ]; then tar cpvf - /tmp/artefacts/ |gzip -c >/tmp/artefacts-"$(hostname)".tgz;fi
 #encrypt result
