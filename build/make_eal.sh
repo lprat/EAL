@@ -122,7 +122,7 @@ curl -s https://api.github.com/repos/microsoft/avml/releases/latest \
 | wget -qi -
 
 ## Download spyre to check Yara rules
-git clone https://github.com/spyre-project/spyre && cd spyre 
+git clone https://github.com/lprat/spyre && cd spyre 
 if grep '4.0.2' 3rdparty.mk > /dev/null; then
   cp /opt/yara.patch _3rdparty/yara-Fix-issue-1317.patch
 fi
