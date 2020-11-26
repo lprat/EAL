@@ -1494,11 +1494,12 @@ then
   echo "Scan with yara rules at $(date)"
   if [ $OS == 1 ] && [ -f "/tmp/toolsEAL/tools/spyre_x64" ]
   then
+    cat /tmp/artefacts/packages_deb-list_files /tmp/artefacts/packages_rpm-list_files /tmp/artefacts/packages_aix-list_files > /tmp/toolsEAL/tools/noscan.txt
     MACHINE_TYPE=$(uname -m)
     if [ "${MACHINE_TYPE}" == 'x86_64' ]; then
-      /tmp/toolsEAL/tools/spyre_x64 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN &
+      /tmp/toolsEAL/tools/spyre_x64 --report='/tmp/artefacts/yara_check.log' --path-ignore /tmp/toolsEAL/tools/noscan.txt --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN &
     else
-      /tmp/toolsEAL/tools/spyre_x86 --report='/tmp/artefacts/yara_check.log' --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN &
+      /tmp/toolsEAL/tools/spyre_x86 --report='/tmp/artefacts/yara_check.log' --path-ignore /tmp/toolsEAL/tools/noscan.txt --yara-proc-rules $YARA_RULES_MEM --yara-file-rules $YARA_RULES_FS --max-file-size $YARA_MAXSIZE --path $YARA_PATHSCAN &
     fi
   fi
 fi
