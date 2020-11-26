@@ -179,17 +179,19 @@ if [ $OS == 1 ];then
     find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + > /tmp/artefacts/all_files 
   fi
   if [ $FILE_TYPE == 1 ];then 
-    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print0|xargs -0 -n 100000 file >> /tmp/artefacts/all_files2
+    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print > /tmp/artefacts/all_files_file
+    file -f /tmp/artefacts/all_files_file >> /tmp/artefacts/all_files2 &
+    rm /tmp/artefacts/all_files_file
   fi
   if [ -x "$(which md5sum)" ] && [ $FILE_MD5 == 1 ] 
   then 
-    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print0|xargs -0 -n 100000 md5sum >> /tmp/artefacts/all_files2
+    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print0|xargs -0 -n 100000 md5sum >> /tmp/artefacts/all_files2 &
   fi
   if [ -x "$(which debugfs)" ] && [ $FILE_DELETED == 1 ] 
   then 
     for path in $(find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print0|xargs -0 -n 100000 md5sum)
     do
-      delfile "$path" >> /tmp/artefacts/files-deleted
+      delfile "$path" >> /tmp/artefacts/files-deleted &
     done
   fi
 fi
@@ -1706,7 +1708,7 @@ then
   fi
   gzip /tmp/artefacts/yara_file.tar
 fi
-
+wait
 #clean
 if [ $OS == 1 ]; then tar zcvpf /tmp/artefacts-"$(hostname)".tgz /tmp/artefacts/;fi
 if [ $OS == 2 ]; then tar cpvf - /tmp/artefacts/ |gzip -c >/tmp/artefacts-"$(hostname)".tgz;fi
