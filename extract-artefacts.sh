@@ -316,11 +316,11 @@ then
   wait
   #remove package file
   if [ -f "/tmp/artefacts/packages_deb-list_files" ] ; then
-    grep -v -x -f /tmp/artefacts/packages_deb-list_files /tmp/artefacts/all_files_file > /tmp/artefacts/all_files_file2
+    grep -v -x -F -f /tmp/artefacts/packages_deb-list_files /tmp/artefacts/all_files_file > /tmp/artefacts/all_files_file2
     mv /tmp/artefacts/all_files_file2 /tmp/artefacts/all_files_file
   fi
   if [ -f "/tmp/artefacts/packages_rpm-list_files" ] ; then
-    grep -v -x -f /tmp/artefacts/packages_rpm-list_files /tmp/artefacts/all_files_file > /tmp/artefacts/all_files_file2
+    grep -v -x -F -f /tmp/artefacts/packages_rpm-list_files /tmp/artefacts/all_files_file > /tmp/artefacts/all_files_file2
     mv /tmp/artefacts/all_files_file2 /tmp/artefacts/all_files_file
   fi
 fi
