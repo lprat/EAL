@@ -1700,7 +1700,7 @@ echo "Extract General info at $(date)"
   echo -e "-------\nusers:\n-------";
   cat /etc/passwd;
   echo -e "-------\nDate of /etc/passwd:\n-------";
-  istat /etc/passwd|grep -i last;
+  stat /etc/passwd;
   echo -e "-------\nHosts:\n-------";
   cat /etc/hosts;
 } > /tmp/artefacts/general
