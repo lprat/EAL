@@ -336,61 +336,60 @@ then
     md5sum "$line" 
    done < /tmp/artefacts/all_files_file >> /tmp/artefacts/all_files2 &
 fi
-  if [ -x "$(which debugfs)" ] && [ $FILE_DELETED == 1 ] 
-  then 
-    declare -a fstmp=()
-    declare -a mnttmp=()
-    declare -a sizex=()
-    declare -a keepx=()
-    while IFS= read -r line;do
-      if [[ ${line} =~ (.+)[[:space:]](.+) ]]; then
-        fstmp+=("${BASH_REMATCH[1]}")
-        mnttmp+=("${BASH_REMATCH[2]}")
-        char="/"
-        if [[ ${BASH_REMATCH[1]} == "/dev/"* ]]; then
-          keepx+=(1)
-        else
-          keepx+=(0)
-        fi
-        if [[ "${BASH_REMATCH[2]}" == "/" ]]; then
-          sizex+=("0")
-        else
-          sizex+=($(awk -F"${char}" '{print NF-1}' <<< "${BASH_REMATCH[2]}"))
-        fi
+if [ -x "$(which debugfs)" ] && [ $FILE_DELETED == 1 ] 
+then 
+  declare -a fstmp=()
+  declare -a mnttmp=()
+  declare -a sizex=()
+  declare -a keepx=()
+  while IFS= read -r line;do
+    if [[ ${line} =~ (.+)[[:space:]](.+) ]]; then
+      fstmp+=("${BASH_REMATCH[1]}")
+      mnttmp+=("${BASH_REMATCH[2]}")
+      char="/"
+      if [[ ${BASH_REMATCH[1]} == "/dev/"* ]]; then
+        keepx+=(1)
+      else
+        keepx+=(0)
       fi
-    done < <(df|awk '{print $1" "$NF}')
-    declare -a fslist=()
-    declare -a mounted=()
-    declare -a validfs=()
-    for i in {10..0}
-    do
-      len=${#sizex[@]}
-      len=$((len-1))
-      for j in $(seq 0 $len); do
-       val=${sizex[$j]}
-       if [ $val == $i ]; then
-          fslist+=(${fstmp[$j]})
-          mounted+=(${mnttmp[$j]})
-          validfs+=(${keepx[$j]})
-       fi
-      done
+      if [[ "${BASH_REMATCH[2]}" == "/" ]]; then
+        sizex+=("0")
+      else
+        sizex+=($(awk -F"${char}" '{print NF-1}' <<< "${BASH_REMATCH[2]}"))
+      fi
+    fi
+  done < <(df|awk '{print $1" "$NF}')
+  declare -a fslist=()
+  declare -a mounted=()
+  declare -a validfs=()
+  for i in {10..0}
+  do
+    len=${#sizex[@]}
+    len=$((len-1))
+    for j in $(seq 0 $len); do
+     val=${sizex[$j]}
+     if [ $val == $i ]; then
+        fslist+=(${fstmp[$j]})
+        mounted+=(${mnttmp[$j]})
+        validfs+=(${keepx[$j]})
+     fi
     done
-    while IFS= read -r file;do
-      j=0
-      for i in "${mounted[@]}"; do
-        if [[ $file == "${i}"* ]]; then
-          if [ ${validfs[$j]} == 0 ]; then
-            break
-          fi
-          fxs=${fslist[$j]}
-          rxm=${file#"${i}"}
-          debugfs -R 'ls -dl '"${rxm}" "${fxs}" 2>/dev/null | grep ' 0> '| awk -v myvar="$file" '{print myvar"/"$NF}' >> /tmp/artefacts/files-deleted &
+  done
+  while IFS= read -r file;do
+    j=0
+    for i in "${mounted[@]}"; do
+      if [[ $file == "${i}"* ]]; then
+        if [ ${validfs[$j]} == 0 ]; then
           break
         fi
-        j=$((j+1))
-      done
-    done < <(find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type d -print) &
-  fi
+        fxs=${fslist[$j]}
+        rxm=${file#"${i}"}
+        debugfs -R 'ls -dl '"${rxm}" "${fxs}" 2>/dev/null | grep ' 0> '| awk -v myvar="$file" '{print myvar"/"$NF}' >> /tmp/artefacts/files-deleted &
+        break
+      fi
+      j=$((j+1))
+    done
+  done < <(find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type d -print) &
 fi
 
 ## Extract systemd, rc.local, init.d
