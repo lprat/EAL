@@ -1791,7 +1791,7 @@ if [ $OS == 2 ]; then tar cpvf - /tmp/artefacts/ |gzip -c >/tmp/artefacts-"$(hos
 if [ -x "$(which openssl)" ] && [ -f "/tmp/toolsEAL/tools/pub_key" ]
 then
   #decrypt: openssl smime -decrypt -in file.tgz.enc -binary -inform DEM -inkey orc-key.pem -out file.tgz
-  if openssl smime -encrypt -binary -aes-256-cbc -in /tmp/artefacts-"$(hostname)".tgz -out /tmp/artefacts-"$(hostname)".tgz.enc -outform DER /tmp/toolsEAL/tools/pub_key
+  if openssl smime -encrypt -stream -binary -aes-256-cbc -in /tmp/artefacts-"$(hostname)".tgz -out /tmp/artefacts-"$(hostname)".tgz.enc -outform DER /tmp/toolsEAL/tools/pub_key
   then
     rm -f /tmp/artefacts-"$(hostname)".tgz 
   fi
