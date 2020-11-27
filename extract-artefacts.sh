@@ -1742,7 +1742,8 @@ then
     fi
   done  < <(grep -i 'statically linked' /tmp/artefacts/all_files | awk '{print $1}'|sed 's/://g')
   gzip /tmp/artefacts/static_file.tar
-  
+fi
+
 ## Yara dump match
 if [ -f "/tmp/artefacts/yara_check.log" ] && [ $DUMP_YARA_MATCH == 1 ]
 then
