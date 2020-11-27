@@ -368,10 +368,10 @@ then
     len=$((len-1))
     for j in $(seq 0 $len); do
      val=${sizex[$j]}
-     if [ $val == $i ]; then
-        fslist+=(${fstmp[$j]})
-        mounted+=(${mnttmp[$j]})
-        validfs+=(${keepx[$j]})
+     if [ "$val" == "$i" ]; then
+        fslist+=("${fstmp[$j]}")
+        mounted+=("${mnttmp[$j]}")
+        validfs+=("${keepx[$j]}")
      fi
     done
   done
@@ -379,7 +379,7 @@ then
     j=0
     for i in "${mounted[@]}"; do
       if [[ $file == "${i}"* ]]; then
-        if [ ${validfs[$j]} == 0 ]; then
+        if [ "${validfs[$j]}" == 0 ]; then
           break
         fi
         fxs=${fslist[$j]}
