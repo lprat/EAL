@@ -114,7 +114,7 @@ getPathByPid()
 # Check GENERIC file for debscan
 if [ -f "/tmp/toolsEAL/tools/GENERIC" ]
 then
-  URL_GENERIC="file://localhost/tmp/toolsEAL/tools/GENERIC"
+  URL_GENERIC="file://localhost/tmp/toolsEAL/tools/"
 else
   if [[ -z "${URL_GENERIC}" ]]; then
     URL_GENERIC="https://security-tracker.debian.org/tracker/debsecan/release/1/GENERIC"
