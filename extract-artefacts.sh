@@ -1626,11 +1626,11 @@ fi
 
 ## HOME extract
 ### Extract .*history*
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_history.tar "$homeuser"/.*history*;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_history.tar "$homeuser"/.*history* 2> /dev/null;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
 gzip /tmp/artefacts/home_history.tar
 ### Extract .ssh/known_hosts and authorized_keys files 
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_known_hosts.tar "$homeuser"/.ssh/known_hosts files;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
-while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_known_hosts.tar "$homeuser"/.ssh/authorized_keys files;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_known_hosts.tar "$homeuser"/.ssh/known_hosts files 2> /dev/null;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
+while IFS= read -r homeuser;do tar vuf /tmp/artefacts/home_known_hosts.tar "$homeuser"/.ssh/authorized_keys files 2> /dev/null;done < <(awk -F ':' '{print $(NF-1)}' /etc/passwd)
 gzip /tmp/artefacts/home_known_hosts.tar
 {
 echo -e "#####Artefact Home Hidden File#####\n";
