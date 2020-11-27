@@ -326,7 +326,7 @@ then
 fi
 if [ $FILE_TYPE == 1 ];then
   echo "Get file type info at $(date)"
-  file -f /tmp/artefacts/all_files_file >> /tmp/artefacts/all_files2 &
+  file -f /tmp/artefacts/all_files_file >> /tmp/artefacts/all_files &
 fi
 if [ -x "$(which md5sum)" ] && [ $FILE_MD5 == 1 ] 
 then
@@ -334,7 +334,7 @@ then
   while IFS= read -r line 
   do 
     md5sum "$line" 
-   done < /tmp/artefacts/all_files_file >> /tmp/artefacts/all_files2 &
+   done < /tmp/artefacts/all_files_file >> /tmp/artefacts/all_files &
 fi
 if [ -x "$(which debugfs)" ] && [ $FILE_DELETED == 1 ] 
 then 
