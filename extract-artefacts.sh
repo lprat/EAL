@@ -166,7 +166,7 @@ if [ $OS == 1 ];then
     find / -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o -exec ls -dils --time-style=long-iso {} + > /tmp/artefacts/all_files 
   fi
   if [ $FILE_TYPE == 1 ] || [ $FILE_MD5 == 1 ] ;then 
-    find / -path /run -prune -o -path /tmp/artefacts -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print > /tmp/artefacts/all_files_file &
+    find / -path /run -prune -o -path /tmp/artefacts -prune -o -path /sys -prune -o \( -fstype nfs -prune \) -o  \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -type f -size -5M -print > /tmp/artefacts/all_files_file &
   fi
 fi
 
@@ -1686,7 +1686,7 @@ if [ $OS == 2 ] && [ $DUMP_ETC == 1 ]; then tar cpvf  - /etc/| gzip -c >/tmp/art
 if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then tar zcpvf /tmp/artefacts/varlog.tgz /var/log/;fi
 if [ $OS == 2 ] && [ $DUMP_LOG == 1 ]; then tar cpvf  - /var/log/| gzip -c >/tmp/artefacts/varlog.tgz;fi
 if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then tar zcpvf /tmp/artefacts/runlog.tgz /run/log/;fi
-if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then find / -path /run/log -prune -o -path /etc -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -name '*.log' -o -name '*.log.*' -o -name 'catalina.out' |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
+if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then find / -path /run/log -prune -o -path /etc -prune -o -path /sys -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -name '*.log' -o -name '*.log.*' -o -name 'catalina.out' |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/otherlog.tar.gz --files-from -;fi
 
 # General info
 echo "Extract General info at $(date)"
