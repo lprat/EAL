@@ -1485,7 +1485,7 @@ fi
 find /var/lib \( -fstype nfs -prune \) -o -name '*.frm' -o -name 'ib_logfile*' -o -name 'ibdata*'|tar -zcpvf /tmp/artefacts/mysqllog.tar.gz --files-from -
 
 ## virsh
-if which arp;then virsh list --all > /tmp/artefacts/virsh;fi
+if which virsh;then virsh list --all > /tmp/artefacts/virsh;fi
 
 ## Yara scan
 if [ $YARA_SCAN == 1 ]
