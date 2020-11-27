@@ -122,7 +122,7 @@ Take file: /tmp/artefacts-$(hostname).tgz & extract.log
   - apache error log not parsed by plaso
   
 ~~~
-#if you use crypt archive: uncrypt.py key.pem artefacts-*.tgz.enc artefacts.tgz.enc
+#if you use crypt archive: uncrypt.py key.pem artefacts-*.tgz.enc artefacts.tgz && tar -zxf artefacts.tgz
 $python3 create_timeline.py dir_artefac_extract/
 cd dir_artefac_extract/;for i in $(ls *.t*gz);do tar -zxf $i;done;find . -name "*.gz" | xargs gunzip;cd ..
 docker pull log2timeline/plaso
