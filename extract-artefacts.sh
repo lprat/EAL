@@ -206,13 +206,13 @@ then
   echo "Extract process info at $(date)"
   if [ $OS == 2 ];then ps -aefl > /tmp/artefacts/process_ps;fi
   if [ $OS == 1 ];then ps auxf > /tmp/artefacts/process_ps;fi
-  if [ $OS == 1 ];then ls -l /proc/*/exe> /tmp/artefacts/process_exe;fi
+  if [ $OS == 1 ];then ls -l /proc/*/exe >> /tmp/artefacts/process_exe 2> /dev/null;fi
   if [ $OS == 2 ];then for pid in $(ps -aefl|awk '{print $4}');do procldd "$pid";done > /tmp/artefacts/process_ldd;fi
-  ls -la /proc/*/fd > /tmp/artefacts/process_fd
+  ls -la /proc/*/fd >> /tmp/artefacts/process_fd 2> /dev/null
   if [ $OS == 2 ];then cksum /proc/*/object/a.out > /tmp/artefacts/process_cksum;fi
   if [ $OS == 2 ];then ls -l /proc/*/object/a.out > /tmp/artefacts/process_aout;fi
   ### Handles
-  lsof > /tmp/artefacts/process_lsof
+  lsof >> /tmp/artefacts/process_lsof 2> /dev/null
   if [ $OS == 2 ];then for p in /proc/[0-9]*;do getPathByPid $(echo $p|awk -F '/' '{print $NF}') ;done ;fi
 fi
 
