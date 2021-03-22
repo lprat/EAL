@@ -32,7 +32,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install yara-python plyara
+RUN pip3 install wheel && pip3 install yara-python plyara 
 COPY ./merge_yararules.py /opt
 COPY ./make_eal.sh /
 COPY ./yara.patch /opt
