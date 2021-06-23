@@ -97,7 +97,6 @@ $cd EAL
 $vi EAL.config
 $cd build
 $docker build -t package_eal .
-$cd build
 #to get options:
 $docker run --rm -v $(pwd)/output:/tmp/output -v $(pwd)/../EAL.config:/conf/EAL.config -ti package_eal -h 
 ~~~
