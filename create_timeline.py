@@ -1118,8 +1118,8 @@ def main():
                     date=datetime.strptime(v['lastmodified'][0:-9]+v['lastmodified'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
                 else:
                     date=datetime.strptime(v['lastmodified'], '%Y-%m-%d %H:%M')
-                date2=date.strftime('%Y-%m-%dT%H:%M:%S')
-                jsonl={"message": v['message'], "parser": 'find', "timestamp": str(int(datetime.timestamp(date))), "datetime": date2, "timestamp_desc": "Metadata Modification Time", "data_type": "fs:stat", "host": hostname, "file_entry_type": v['type_file'], "file_group": v['group'], "file_perm": v['permissions'], "file_owner": v['owner'], "inode": v['inode'], "filename": k, "blocksize": v['blocksize'], "tag": []}
+                date2 = date.strftime('%Y-%m-%dT%H:%M:%S.%f')
+                jsonl={"message": v['message'], "parser": 'find', "datetime": date2, "timestamp_desc": "Metadata Modification Time", "data_type": "fs:stat", "host": hostname, "file_entry_type": v['type_file'], "file_group": v['group'], "file_perm": v['permissions'], "file_owner": v['owner'], "inode": v['inode'], "filename": k, "blocksize": v['blocksize'], "tag": []}
                 if 'ext' in v and v['ext']:
                     jsonl["file_ext"]=v['ext']
                     jsonl["file_statext"]=stat_ext[v['ext']]
@@ -1337,8 +1337,8 @@ def main():
                         date=datetime.strptime(v['lastchange'][0:-9]+v['lastchange'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
                     except:
                         print("Error parse date on file: " + v['file_name'])
-                    jsonl['timestamp']=str(int(datetime.timestamp(date)))
-                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S')
+                    #jsonl['timestamp']=str(int(datetime.timestamp(date)))
+                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S.%f')
                     jsonl['timestamp_desc']="Metadata Change Time"
                     print("%s" % (json.dumps(jsonl)),file=fx)
                 if 'lastaccess' in v and v['lastaccess'] != '-':
@@ -1346,8 +1346,8 @@ def main():
                         date=datetime.strptime(v['lastaccess'][0:-9]+v['lastaccess'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
                     except:
                         print("Error parse date on file: " + v['file_name'])
-                    jsonl['timestamp']=str(int(datetime.timestamp(date)))
-                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S')
+                    #jsonl['timestamp']=str(int(datetime.timestamp(date)))
+                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S.%f')
                     jsonl['timestamp_desc']="Metadata Access Time"
                     print("%s" % (json.dumps(jsonl)),file=fx)
                 if 'createdate' in v and v['createdate'] != '-':
@@ -1355,8 +1355,8 @@ def main():
                         date=datetime.strptime(v['createdate'][0:-9]+v['createdate'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
                     except:
                         print("Error parse date on file: " + v['file_name'])
-                    jsonl['timestamp']=str(int(datetime.timestamp(date)))
-                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S')
+                    #jsonl['timestamp']=str(int(datetime.timestamp(date)))
+                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S.%f')
                     jsonl['timestamp_desc']="Metadata Create Time"
                     print("%s" % (json.dumps(jsonl)),file=fx)
             fx.close()    
