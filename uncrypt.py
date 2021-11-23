@@ -11,6 +11,7 @@
 import logging
 import struct
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from shlex import quote
