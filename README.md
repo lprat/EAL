@@ -104,7 +104,7 @@ Script custom out in output directory, you can copy to the scan linux.
 
 
 ### Extract artefacts
-
+(Run with root privileges)
 ~~~
 $bash -x extract-artefacts.sh > extract.log 2>&1
 
