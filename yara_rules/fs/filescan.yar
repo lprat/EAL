@@ -1,65 +1,5 @@
 import "elf"
 
-private rule b64
-{
-    strings:
-        $user_agent = "SFRUUF9VU0VSX0FHRU5UCg"
-        $eval = "ZXZhbCg"
-        $system = "c3lzdGVt"
-        $preg_replace = "cHJlZ19yZXBsYWNl"
-        $exec = "ZXhlYyg"
-        $base64_decode = "YmFzZTY0X2RlY29kZ"
-        $perl_shebang = "IyEvdXNyL2Jpbi9wZXJsCg"
-        $cmd_exe = "Y21kLmV4ZQ"
-        $powershell = "cG93ZXJzaGVsbC5leGU"
-        $create_function = "Y3JlYXRlX2Z1bmN0aW9u"
-
-    condition:
-        any of them
-}
-
-private rule hex
-{
-    strings:
-        $globals = "\\x47\\x4c\\x4f\\x42\\x41\\x4c\\x53" nocase
-        $eval = "\\x65\\x76\\x61\\x6C\\x28" nocase
-        $exec = "\\x65\\x78\\x65\\x63" nocase
-        $system = "\\x73\\x79\\x73\\x74\\x65\\x6d" nocase
-        $preg_replace = "\\x70\\x72\\x65\\x67\\x5f\\x72\\x65\\x70\\x6c\\x61\\x63\\x65" nocase
-        $http_user_agent = "\\x48\\124\\x54\\120\\x5f\\125\\x53\\105\\x52\\137\\x41\\107\\x45\\116\\x54" nocase
-        $base64_decode = "\\x61\\x73\\x65\\x36\\x34\\x5f\\x64\\x65\\x63\\x6f\\x64\\x65\\x28\\x67\\x7a\\x69\\x6e\\x66\\x6c\\x61\\x74\\x65\\x28" nocase
-        $create_function = "\\x63\\x72\\x65\\x61\\x74\\x65\\x5f\\x66\\x75\\x6e\\x63\\x74\\x69\\x6f\\x6e" nocase
-        
-    condition:
-        any of them
-}
-
-private rule Hpack
-{
-    strings:
-        $globals = "474c4f42414c53" nocase
-        $eval = "6576616C28" nocase
-        $exec = "65786563" nocase
-        $system = "73797374656d" nocase
-        $preg_replace = "707265675f7265706c616365" nocase
-        $base64_decode = "61736536345f6465636f646528677a696e666c61746528" nocase
-    
-    condition:
-        any of them
-}
-
-private rule strrev
-{
-    strings:
-        $globals = "slabolg" nocase fullword
-        $preg_replace = "ecalper_gerp" nocase fullword
-        $base64_decode = "edoced_46esab" nocase fullword
-        $gzinflate = "etalfnizg" nocase fullword
-         $create_function = "noitcnuf_etaerc" nocase fullword
-    condition:
-        any of them
-}
-
 private rule filejs {
     meta:
         author = "Lionel PRAT"
@@ -78,78 +18,6 @@ private rule filejs {
         $func = /(^|\s+)function\s+\S+\([^\)]+\)\s*{/ nocase
     condition:
         (2 of ($js*) and 2 of ($k*) and $func and $var)
-}
-
-private rule strsuspectfile
-{
-    meta:
-        description = "Suspect string in file"
-        author = "Lionel PRAT"
-        filetype = "ALL"
-        
-    strings:
-        $ = "pwndns.pw" nocase ascii wide  /* malware miner */
-        $ = "ipify.org" nocase ascii wide /* get my ip */
-        $ = "45.9.148." nocase ascii wide /* monero ip */
-        $ = "PRIVMSG " nocase ascii wide /* Potential command IRC*/
-        $ = "</cfexecute>" nocase ascii wide /* coldfusion */
-        $ = "User-Agent" nocase ascii wide /* Potential make header HTTP */
-        $ = "already connected" nocase ascii wide
-        $ = "connection closed" nocase ascii wide
-        $ = "error on socket" nocase ascii wide
-        $ = "AF_INET" nocase ascii wide
-        $ = "SOCK_STREAM" nocase ascii wide
-        $ = "popen(" nocase ascii wide
-        $ = "system(" nocase ascii wide
-        $ = "backdoor" nocase ascii wide
-        $ = "webshell" nocase ascii wide
-        $ = "web shell" nocase ascii wide
-        $ = "xmrig" nocase ascii wide /* malware miner */
-        $ = "monero" nocase ascii wide /* malware miner */
-        $ = "bitcoin" nocase ascii wide /* malware miner */
-        $ = "miner" nocase ascii wide /* malware miner */
-        $ = "coinhive" nocase ascii wide /* malware miner */
-        $ = "authorized_keys" nocase ascii wide /* ssh backdoor */
-        $ = "/dev/cpu" nocase ascii wide /* malware miner */
-        $ = "ujL;d$" nocase ascii wide /*libcurl */ 
-        $ = "tls: failed to parse configured certificate chain" nocase ascii wide /* use network */
-        $ = "server port" nocase ascii wide  /* use network */ 
-        $ = "keepalive timeout" nocase ascii wide /* use network */
-        $ = ".onion" nocase ascii wide /* use TOR */
-        $ = "Accept: application/" nocase ascii wide  /* Potential make header HTTP */
-        $ = "d$8[]A\\A]" nocase ascii wide /* busybox */
-        $ = "@(A98u" nocase ascii wide /* metasploit */
-        $ = "C88E8u" nocase ascii wide /* metasploit */
-        $ = "/bin/chown" nocase ascii wide /* suspect command use */
-        $ = "socket:[%d]" nocase ascii wide /* use network */
-        $ = "history -c" nocase ascii wide /* clean history */
-        $ = "Cookie: " nocase ascii wide  /* Potential make header HTTP */
-        $ = "/useradd" nocase ascii wide /* suspect command use */
-        $ = "/adduser" nocase ascii wide /* suspect command use */
-        $ = "chmod +x" nocase ascii wide /* suspect command use */
-        $ = "curl" nocase ascii wide /* suspect command use */
-        $ = "/bin/sh" nocase ascii wide /* suspect command use */
-        $ = "wget" nocase ascii wide /* suspect command use */
-        $ = "masscan" nocase ascii wide /* suspect command use */
-        $ = "nmap(%s): unsupported" nocase ascii wide /* suspect command use */
-        $ = "NBT-NS" nocase ascii wide /* suspect command use responder */
-        $ = "LLMNR" nocase ascii wide /* suspect command use responder */
-        $ = "LD_PRELOAD" nocase ascii wide /* hijack proc */
-        $ = "_ZNSaIcEaSERKS_" nocase ascii wide /* metasploit */
-        //$ = "content-type: " nocase ascii wide /* Potential make header HTTP  - more false positive */ 
-        $ = "smbexec" nocase ascii wide /* suspect command use */
-        $ = /\!ENTITY [^>]{1,64} SYSTEM/ nocase ascii wide /* potential XXE */
-        $ = /GCC: \([\^)]{1,32}\) [0-9\.]{3,6}/ nocase ascii wide /* bash to elf */
-        $ = /https?:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url with ip */
-        $ = "pastebin" nocase ascii wide /* pastebin */
-        $ = /https:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url suspect port */
-        $ = /https?:\/\/[\w\.-]{4,255}:[0-9]{1,5}/ nocase ascii wide /* url specify port */
-        $ = "meterpreter" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
-        $ = "Nir Sofer" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
-        $ = /\[[\+\-!E]\] (exploit|target|vulnerab|shell|inject|dump)/ nocase /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
-        $ = "stratum+tcp://"    /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
-    condition:
-        any of them
 }
 
 rule single_load_rwe
@@ -400,8 +268,97 @@ rule SuspectPhp
         $func48 = "xmlrpc_decode" fullword nocase
         $func49 = "base64_decode" fullword nocase
         $whitelist = /escapeshellcmd|escapeshellarg/ nocase
+        $b64user_agent = "SFRUUF9VU0VSX0FHRU5UCg"
+        $b64eval = "ZXZhbCg"
+        $b64system = "c3lzdGVt"
+        $b64preg_replace = "cHJlZ19yZXBsYWNl"
+        $b64exec = "ZXhlYyg"
+        $b64base64_decode = "YmFzZTY0X2RlY29kZ"
+        $b64perl_shebang = "IyEvdXNyL2Jpbi9wZXJsCg"
+        $b64cmd_exe = "Y21kLmV4ZQ"
+        $b64powershell = "cG93ZXJzaGVsbC5leGU"
+        $b64create_function = "Y3JlYXRlX2Z1bmN0aW9u"
+        $hexglobals = "\\x47\\x4c\\x4f\\x42\\x41\\x4c\\x53" nocase
+        $hexeval = "\\x65\\x76\\x61\\x6C\\x28" nocase
+        $hexexec = "\\x65\\x78\\x65\\x63" nocase
+        $hexsystem = "\\x73\\x79\\x73\\x74\\x65\\x6d" nocase
+        $hexpreg_replace = "\\x70\\x72\\x65\\x67\\x5f\\x72\\x65\\x70\\x6c\\x61\\x63\\x65" nocase
+        $hexhttp_user_agent = "\\x48\\124\\x54\\120\\x5f\\125\\x53\\105\\x52\\137\\x41\\107\\x45\\116\\x54" nocase
+        $hexbase64_decode = "\\x61\\x73\\x65\\x36\\x34\\x5f\\x64\\x65\\x63\\x6f\\x64\\x65\\x28\\x67\\x7a\\x69\\x6e\\x66\\x6c\\x61\\x74\\x65\\x28" nocase
+        $hexcreate_function = "\\x63\\x72\\x65\\x61\\x74\\x65\\x5f\\x66\\x75\\x6e\\x63\\x74\\x69\\x6f\\x6e" nocase
+        $hpackglobals = "474c4f42414c53" nocase
+        $hpackeval = "6576616C28" nocase
+        $hpackexec = "65786563" nocase
+        $hpacksystem = "73797374656d" nocase
+        $hpackpreg_replace = "707265675f7265706c616365" nocase
+        $hpackbase64_decode = "61736536345f6465636f646528677a696e666c61746528" nocase
+        $strrevglobals = "slabolg" nocase fullword
+        $strrevpreg_replace = "ecalper_gerp" nocase fullword
+        $strrevbase64_decode = "edoced_46esab" nocase fullword
+        $strrevgzinflate = "etalfnizg" nocase fullword
+        $strrevcreate_function = "noitcnuf_etaerc" nocase fullword
+        $strsuspectfile1 = "pwndns.pw" nocase ascii wide  /* malware miner */
+        $strsuspectfile2 = "ipify.org" nocase ascii wide /* get my ip */
+        $strsuspectfile3 = "45.9.148." nocase ascii wide /* monero ip */
+        $strsuspectfile4 = "PRIVMSG " nocase ascii wide /* Potential command IRC*/
+        $strsuspectfile5 = "</cfexecute>" nocase ascii wide /* coldfusion */
+        $strsuspectfile6 = "User-Agent" nocase ascii wide /* Potential make header HTTP */
+        $strsuspectfile7 = "already connected" nocase ascii wide
+        $strsuspectfile8 = "connection closed" nocase ascii wide
+        $strsuspectfile9 = "error on socket" nocase ascii wide
+        $strsuspectfile10 = "AF_INET" nocase ascii wide
+        $strsuspectfile11 = "SOCK_STREAM" nocase ascii wide
+        $strsuspectfile12 = "popen(" nocase ascii wide
+        $strsuspectfile13 = "system(" nocase ascii wide
+        $strsuspectfile14 = "backdoor" nocase ascii wide
+        $strsuspectfile15 = "webshell" nocase ascii wide
+        $strsuspectfile16 = "web shell" nocase ascii wide
+        $strsuspectfile17 = "xmrig" nocase ascii wide /* malware miner */
+        $strsuspectfile18 = "monero" nocase ascii wide /* malware miner */
+        $strsuspectfile19 = "bitcoin" nocase ascii wide /* malware miner */
+        $strsuspectfile20 = "miner" nocase ascii wide /* malware miner */
+        $strsuspectfile21 = "coinhive" nocase ascii wide /* malware miner */
+        $strsuspectfile22 = "authorized_keys" nocase ascii wide /* ssh backdoor */
+        $strsuspectfile23 = "/dev/cpu" nocase ascii wide /* malware miner */
+        $strsuspectfile24 = "ujL;d$" nocase ascii wide /*libcurl */ 
+        $strsuspectfile25 = "tls: failed to parse configured certificate chain" nocase ascii wide /* use network */
+        $strsuspectfile26 = "server port" nocase ascii wide  /* use network */ 
+        $strsuspectfile27 = "keepalive timeout" nocase ascii wide /* use network */
+        $strsuspectfile28 = ".onion" nocase ascii wide /* use TOR */
+        $strsuspectfile29 = "Accept: application/" nocase ascii wide  /* Potential make header HTTP */
+        $strsuspectfile30 = "d$8[]A\\A]" nocase ascii wide /* busybox */
+        $strsuspectfile31 = "@(A98u" nocase ascii wide /* metasploit */
+        $strsuspectfile32 = "C88E8u" nocase ascii wide /* metasploit */
+        $strsuspectfile33 = "/bin/chown" nocase ascii wide /* suspect command use */
+        $strsuspectfile34 = "socket:[%d]" nocase ascii wide /* use network */
+        $strsuspectfile35 = "history -c" nocase ascii wide /* clean history */
+        $strsuspectfile36 = "Cookie: " nocase ascii wide  /* Potential make header HTTP */
+        $strsuspectfile37 = "/useradd" nocase ascii wide /* suspect command use */
+        $strsuspectfile38 = "/adduser" nocase ascii wide /* suspect command use */
+        $strsuspectfile39 = "chmod +x" nocase ascii wide /* suspect command use */
+        $strsuspectfile40 = "curl" nocase ascii wide /* suspect command use */
+        $strsuspectfile41 = "/bin/sh" nocase ascii wide /* suspect command use */
+        $strsuspectfile42 = "wget" nocase ascii wide /* suspect command use */
+        $strsuspectfile43 = "masscan" nocase ascii wide /* suspect command use */
+        $strsuspectfile44 = "nmap(%s): unsupported" nocase ascii wide /* suspect command use */
+        $strsuspectfile45 = "NBT-NS" nocase ascii wide /* suspect command use responder */
+        $strsuspectfile46 = "LLMNR" nocase ascii wide /* suspect command use responder */
+        $strsuspectfile47 = "LD_PRELOAD" nocase ascii wide /* hijack proc */
+        $strsuspectfile48 = "_ZNSaIcEaSERKS_" nocase ascii wide /* metasploit */
+        //$ = "content-type: " nocase ascii wide /* Potential make header HTTP  - more false positive */ 
+        $strsuspectfile49 = "smbexec" nocase ascii wide /* suspect command use */
+        $strsuspectfile50 = /\!ENTITY [^>]{1,64} SYSTEM/ nocase ascii wide /* potential XXE */
+        $strsuspectfile51 = /GCC: \([\^)]{1,32}\) [0-9\.]{3,6}/ nocase ascii wide /* bash to elf */
+        $strsuspectfile52 = /https?:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url with ip */
+        $strsuspectfile53 = "pastebin" nocase ascii wide /* pastebin */
+        $strsuspectfile54 = /https:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url suspect port */
+        $strsuspectfile55 = /https?:\/\/[\w\.-]{4,255}:[0-9]{1,5}/ nocase ascii wide /* url specify port */
+        $strsuspectfile56 = "meterpreter" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile57 = "Nir Sofer" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile58 = /\[[\+\-!E]\] (exploit|target|vulnerab|shell|inject|dump)/ nocase /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile59 = "stratum+tcp://"    /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
     condition:
-        $php and (((any of ($param*)) and  ((not $whitelist and (3 of ($func*) or #system > 250)) or b64 or hex or strrev or Hpack or strsuspectfile)) or (3 of ($obf*) and any of  ($fobf*)))
+        $php and (((any of ($param*)) and  ((not $whitelist and (3 of ($func*) or $system)) or any of ($b64*) or any of ($hex*) or any of ($strrev*) or any of ($hpack*) or any of ($strsuspectfile*))) or (3 of ($obf*) and any of  ($fobf*)))
 }
 
 rule SuspectJS {
@@ -418,8 +375,68 @@ rule SuspectJS {
         $obf4 = /var\s+[^\s]*[a-z_\$]([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{5}){1}/ nocase // name var obfuscated
         $obf5 = /var\s+[^\s]*[a-z_\$]([aeuoiy]{4}|[bcdfghjklmnpqrstvwxz]{5}){1}/ nocase // name var obfuscated
         $obf6 = /\.toString\([0-9]+\)/ nocase
+        $strsuspectfile1 = "pwndns.pw" nocase ascii wide  /* malware miner */
+        $strsuspectfile2 = "ipify.org" nocase ascii wide /* get my ip */
+        $strsuspectfile3 = "45.9.148." nocase ascii wide /* monero ip */
+        $strsuspectfile4 = "PRIVMSG " nocase ascii wide /* Potential command IRC*/
+        $strsuspectfile5 = "</cfexecute>" nocase ascii wide /* coldfusion */
+        $strsuspectfile6 = "User-Agent" nocase ascii wide /* Potential make header HTTP */
+        $strsuspectfile7 = "already connected" nocase ascii wide
+        $strsuspectfile8 = "connection closed" nocase ascii wide
+        $strsuspectfile9 = "error on socket" nocase ascii wide
+        $strsuspectfile10 = "AF_INET" nocase ascii wide
+        $strsuspectfile11 = "SOCK_STREAM" nocase ascii wide
+        $strsuspectfile12 = "popen(" nocase ascii wide
+        $strsuspectfile13 = "system(" nocase ascii wide
+        $strsuspectfile14 = "backdoor" nocase ascii wide
+        $strsuspectfile15 = "webshell" nocase ascii wide
+        $strsuspectfile16 = "web shell" nocase ascii wide
+        $strsuspectfile17 = "xmrig" nocase ascii wide /* malware miner */
+        $strsuspectfile18 = "monero" nocase ascii wide /* malware miner */
+        $strsuspectfile19 = "bitcoin" nocase ascii wide /* malware miner */
+        $strsuspectfile20 = "miner" nocase ascii wide /* malware miner */
+        $strsuspectfile21 = "coinhive" nocase ascii wide /* malware miner */
+        $strsuspectfile22 = "authorized_keys" nocase ascii wide /* ssh backdoor */
+        $strsuspectfile23 = "/dev/cpu" nocase ascii wide /* malware miner */
+        $strsuspectfile24 = "ujL;d$" nocase ascii wide /*libcurl */ 
+        $strsuspectfile25 = "tls: failed to parse configured certificate chain" nocase ascii wide /* use network */
+        $strsuspectfile26 = "server port" nocase ascii wide  /* use network */ 
+        $strsuspectfile27 = "keepalive timeout" nocase ascii wide /* use network */
+        $strsuspectfile28 = ".onion" nocase ascii wide /* use TOR */
+        $strsuspectfile29 = "Accept: application/" nocase ascii wide  /* Potential make header HTTP */
+        $strsuspectfile30 = "d$8[]A\\A]" nocase ascii wide /* busybox */
+        $strsuspectfile31 = "@(A98u" nocase ascii wide /* metasploit */
+        $strsuspectfile32 = "C88E8u" nocase ascii wide /* metasploit */
+        $strsuspectfile33 = "/bin/chown" nocase ascii wide /* suspect command use */
+        $strsuspectfile34 = "socket:[%d]" nocase ascii wide /* use network */
+        $strsuspectfile35 = "history -c" nocase ascii wide /* clean history */
+        $strsuspectfile36 = "Cookie: " nocase ascii wide  /* Potential make header HTTP */
+        $strsuspectfile37 = "/useradd" nocase ascii wide /* suspect command use */
+        $strsuspectfile38 = "/adduser" nocase ascii wide /* suspect command use */
+        $strsuspectfile39 = "chmod +x" nocase ascii wide /* suspect command use */
+        $strsuspectfile40 = "curl" nocase ascii wide /* suspect command use */
+        $strsuspectfile41 = "/bin/sh" nocase ascii wide /* suspect command use */
+        $strsuspectfile42 = "wget" nocase ascii wide /* suspect command use */
+        $strsuspectfile43 = "masscan" nocase ascii wide /* suspect command use */
+        $strsuspectfile44 = "nmap(%s): unsupported" nocase ascii wide /* suspect command use */
+        $strsuspectfile45 = "NBT-NS" nocase ascii wide /* suspect command use responder */
+        $strsuspectfile46 = "LLMNR" nocase ascii wide /* suspect command use responder */
+        $strsuspectfile47 = "LD_PRELOAD" nocase ascii wide /* hijack proc */
+        $strsuspectfile48 = "_ZNSaIcEaSERKS_" nocase ascii wide /* metasploit */
+        //$ = "content-type: " nocase ascii wide /* Potential make header HTTP  - more false positive */ 
+        $strsuspectfile49 = "smbexec" nocase ascii wide /* suspect command use */
+        $strsuspectfile50 = /\!ENTITY [^>]{1,64} SYSTEM/ nocase ascii wide /* potential XXE */
+        $strsuspectfile51 = /GCC: \([\^)]{1,32}\) [0-9\.]{3,6}/ nocase ascii wide /* bash to elf */
+        $strsuspectfile52 = /https?:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url with ip */
+        $strsuspectfile53 = "pastebin" nocase ascii wide /* pastebin */
+        $strsuspectfile54 = /https:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url suspect port */
+        $strsuspectfile55 = /https?:\/\/[\w\.-]{4,255}:[0-9]{1,5}/ nocase ascii wide /* url specify port */
+        $strsuspectfile56 = "meterpreter" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile57 = "Nir Sofer" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile58 = /\[[\+\-!E]\] (exploit|target|vulnerab|shell|inject|dump)/ nocase /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile59 = "stratum+tcp://"    /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
     condition:
-        filejs and (3 of ($obf*) or strsuspectfile)
+        filejs and (3 of ($obf*) or any of ($strsuspectfile*))
 }
 
 rule SuspectScript
@@ -541,8 +558,68 @@ rule SuspectJSP
         $d10 = "ProcessBuilder(" nocase
         $d11 = "java.net.URL" nocase
         $d12 = "$$BCEL$$" nocase
+                $strsuspectfile1 = "pwndns.pw" nocase ascii wide  /* malware miner */
+        $strsuspectfile2 = "ipify.org" nocase ascii wide /* get my ip */
+        $strsuspectfile3 = "45.9.148." nocase ascii wide /* monero ip */
+        $strsuspectfile4 = "PRIVMSG " nocase ascii wide /* Potential command IRC*/
+        $strsuspectfile5 = "</cfexecute>" nocase ascii wide /* coldfusion */
+        $strsuspectfile6 = "User-Agent" nocase ascii wide /* Potential make header HTTP */
+        $strsuspectfile7 = "already connected" nocase ascii wide
+        $strsuspectfile8 = "connection closed" nocase ascii wide
+        $strsuspectfile9 = "error on socket" nocase ascii wide
+        $strsuspectfile10 = "AF_INET" nocase ascii wide
+        $strsuspectfile11 = "SOCK_STREAM" nocase ascii wide
+        $strsuspectfile12 = "popen(" nocase ascii wide
+        $strsuspectfile13 = "system(" nocase ascii wide
+        $strsuspectfile14 = "backdoor" nocase ascii wide
+        $strsuspectfile15 = "webshell" nocase ascii wide
+        $strsuspectfile16 = "web shell" nocase ascii wide
+        $strsuspectfile17 = "xmrig" nocase ascii wide /* malware miner */
+        $strsuspectfile18 = "monero" nocase ascii wide /* malware miner */
+        $strsuspectfile19 = "bitcoin" nocase ascii wide /* malware miner */
+        $strsuspectfile20 = "miner" nocase ascii wide /* malware miner */
+        $strsuspectfile21 = "coinhive" nocase ascii wide /* malware miner */
+        $strsuspectfile22 = "authorized_keys" nocase ascii wide /* ssh backdoor */
+        $strsuspectfile23 = "/dev/cpu" nocase ascii wide /* malware miner */
+        $strsuspectfile24 = "ujL;d$" nocase ascii wide /*libcurl */ 
+        $strsuspectfile25 = "tls: failed to parse configured certificate chain" nocase ascii wide /* use network */
+        $strsuspectfile26 = "server port" nocase ascii wide  /* use network */ 
+        $strsuspectfile27 = "keepalive timeout" nocase ascii wide /* use network */
+        $strsuspectfile28 = ".onion" nocase ascii wide /* use TOR */
+        $strsuspectfile29 = "Accept: application/" nocase ascii wide  /* Potential make header HTTP */
+        $strsuspectfile30 = "d$8[]A\\A]" nocase ascii wide /* busybox */
+        $strsuspectfile31 = "@(A98u" nocase ascii wide /* metasploit */
+        $strsuspectfile32 = "C88E8u" nocase ascii wide /* metasploit */
+        $strsuspectfile33 = "/bin/chown" nocase ascii wide /* suspect command use */
+        $strsuspectfile34 = "socket:[%d]" nocase ascii wide /* use network */
+        $strsuspectfile35 = "history -c" nocase ascii wide /* clean history */
+        $strsuspectfile36 = "Cookie: " nocase ascii wide  /* Potential make header HTTP */
+        $strsuspectfile37 = "/useradd" nocase ascii wide /* suspect command use */
+        $strsuspectfile38 = "/adduser" nocase ascii wide /* suspect command use */
+        $strsuspectfile39 = "chmod +x" nocase ascii wide /* suspect command use */
+        $strsuspectfile40 = "curl" nocase ascii wide /* suspect command use */
+        $strsuspectfile41 = "/bin/sh" nocase ascii wide /* suspect command use */
+        $strsuspectfile42 = "wget" nocase ascii wide /* suspect command use */
+        $strsuspectfile43 = "masscan" nocase ascii wide /* suspect command use */
+        $strsuspectfile44 = "nmap(%s): unsupported" nocase ascii wide /* suspect command use */
+        $strsuspectfile45 = "NBT-NS" nocase ascii wide /* suspect command use responder */
+        $strsuspectfile46 = "LLMNR" nocase ascii wide /* suspect command use responder */
+        $strsuspectfile47 = "LD_PRELOAD" nocase ascii wide /* hijack proc */
+        $strsuspectfile48 = "_ZNSaIcEaSERKS_" nocase ascii wide /* metasploit */
+        //$ = "content-type: " nocase ascii wide /* Potential make header HTTP  - more false positive */ 
+        $strsuspectfile49 = "smbexec" nocase ascii wide /* suspect command use */
+        $strsuspectfile50 = /\!ENTITY [^>]{1,64} SYSTEM/ nocase ascii wide /* potential XXE */
+        $strsuspectfile51 = /GCC: \([\^)]{1,32}\) [0-9\.]{3,6}/ nocase ascii wide /* bash to elf */
+        $strsuspectfile52 = /https?:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url with ip */
+        $strsuspectfile53 = "pastebin" nocase ascii wide /* pastebin */
+        $strsuspectfile54 = /https:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url suspect port */
+        $strsuspectfile55 = /https?:\/\/[\w\.-]{4,255}:[0-9]{1,5}/ nocase ascii wide /* url specify port */
+        $strsuspectfile56 = "meterpreter" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile57 = "Nir Sofer" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile58 = /\[[\+\-!E]\] (exploit|target|vulnerab|shell|inject|dump)/ nocase /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile59 = "stratum+tcp://"    /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
     condition:
-        all of ($jsp*) and (($req and (strsuspectfile or any of ($d*))) or 3 of ($obf*))
+        all of ($jsp*) and (($req and (any of ($strsuspectfile*) or any of ($d*))) or 3 of ($obf*))
 }
 
 rule SuspectPY
@@ -561,7 +638,66 @@ rule SuspectPY
         $cmd1 = "check_output(" nocase
         $cmd2 = "popen" nocase
         $cmd3 = "run(" nocase
-        
+                $strsuspectfile1 = "pwndns.pw" nocase ascii wide  /* malware miner */
+        $strsuspectfile2 = "ipify.org" nocase ascii wide /* get my ip */
+        $strsuspectfile3 = "45.9.148." nocase ascii wide /* monero ip */
+        $strsuspectfile4 = "PRIVMSG " nocase ascii wide /* Potential command IRC*/
+        $strsuspectfile5 = "</cfexecute>" nocase ascii wide /* coldfusion */
+        $strsuspectfile6 = "User-Agent" nocase ascii wide /* Potential make header HTTP */
+        $strsuspectfile7 = "already connected" nocase ascii wide
+        $strsuspectfile8 = "connection closed" nocase ascii wide
+        $strsuspectfile9 = "error on socket" nocase ascii wide
+        $strsuspectfile10 = "AF_INET" nocase ascii wide
+        $strsuspectfile11 = "SOCK_STREAM" nocase ascii wide
+        $strsuspectfile12 = "popen(" nocase ascii wide
+        $strsuspectfile13 = "system(" nocase ascii wide
+        $strsuspectfile14 = "backdoor" nocase ascii wide
+        $strsuspectfile15 = "webshell" nocase ascii wide
+        $strsuspectfile16 = "web shell" nocase ascii wide
+        $strsuspectfile17 = "xmrig" nocase ascii wide /* malware miner */
+        $strsuspectfile18 = "monero" nocase ascii wide /* malware miner */
+        $strsuspectfile19 = "bitcoin" nocase ascii wide /* malware miner */
+        $strsuspectfile20 = "miner" nocase ascii wide /* malware miner */
+        $strsuspectfile21 = "coinhive" nocase ascii wide /* malware miner */
+        $strsuspectfile22 = "authorized_keys" nocase ascii wide /* ssh backdoor */
+        $strsuspectfile23 = "/dev/cpu" nocase ascii wide /* malware miner */
+        $strsuspectfile24 = "ujL;d$" nocase ascii wide /*libcurl */ 
+        $strsuspectfile25 = "tls: failed to parse configured certificate chain" nocase ascii wide /* use network */
+        $strsuspectfile26 = "server port" nocase ascii wide  /* use network */ 
+        $strsuspectfile27 = "keepalive timeout" nocase ascii wide /* use network */
+        $strsuspectfile28 = ".onion" nocase ascii wide /* use TOR */
+        $strsuspectfile29 = "Accept: application/" nocase ascii wide  /* Potential make header HTTP */
+        $strsuspectfile30 = "d$8[]A\\A]" nocase ascii wide /* busybox */
+        $strsuspectfile31 = "@(A98u" nocase ascii wide /* metasploit */
+        $strsuspectfile32 = "C88E8u" nocase ascii wide /* metasploit */
+        $strsuspectfile33 = "/bin/chown" nocase ascii wide /* suspect command use */
+        $strsuspectfile34 = "socket:[%d]" nocase ascii wide /* use network */
+        $strsuspectfile35 = "history -c" nocase ascii wide /* clean history */
+        $strsuspectfile36 = "Cookie: " nocase ascii wide  /* Potential make header HTTP */
+        $strsuspectfile37 = "/useradd" nocase ascii wide /* suspect command use */
+        $strsuspectfile38 = "/adduser" nocase ascii wide /* suspect command use */
+        $strsuspectfile39 = "chmod +x" nocase ascii wide /* suspect command use */
+        $strsuspectfile40 = "curl" nocase ascii wide /* suspect command use */
+        $strsuspectfile41 = "/bin/sh" nocase ascii wide /* suspect command use */
+        $strsuspectfile42 = "wget" nocase ascii wide /* suspect command use */
+        $strsuspectfile43 = "masscan" nocase ascii wide /* suspect command use */
+        $strsuspectfile44 = "nmap(%s): unsupported" nocase ascii wide /* suspect command use */
+        $strsuspectfile45 = "NBT-NS" nocase ascii wide /* suspect command use responder */
+        $strsuspectfile46 = "LLMNR" nocase ascii wide /* suspect command use responder */
+        $strsuspectfile47 = "LD_PRELOAD" nocase ascii wide /* hijack proc */
+        $strsuspectfile48 = "_ZNSaIcEaSERKS_" nocase ascii wide /* metasploit */
+        //$ = "content-type: " nocase ascii wide /* Potential make header HTTP  - more false positive */ 
+        $strsuspectfile49 = "smbexec" nocase ascii wide /* suspect command use */
+        $strsuspectfile50 = /\!ENTITY [^>]{1,64} SYSTEM/ nocase ascii wide /* potential XXE */
+        $strsuspectfile51 = /GCC: \([\^)]{1,32}\) [0-9\.]{3,6}/ nocase ascii wide /* bash to elf */
+        $strsuspectfile52 = /https?:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url with ip */
+        $strsuspectfile53 = "pastebin" nocase ascii wide /* pastebin */
+        $strsuspectfile54 = /https:\/\/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ nocase ascii wide /* url suspect port */
+        $strsuspectfile55 = /https?:\/\/[\w\.-]{4,255}:[0-9]{1,5}/ nocase ascii wide /* url specify port */
+        $strsuspectfile56 = "meterpreter" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile57 = "Nir Sofer" nocase ascii wide /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile58 = /\[[\+\-!E]\] (exploit|target|vulnerab|shell|inject|dump)/ nocase /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
+        $strsuspectfile59 = "stratum+tcp://"    /* from https://gist.github.com/Neo23x0/f1bb645a4f715cb499150c5a14d82b44 */
     condition:
-        any of ($py*) and (strsuspectfile or any of ($cmd*)) or ($pc and $cc)
+        any of ($py*) and (any of ($strsuspectfile*) or any of ($cmd*)) or ($pc and $cc)
 }
