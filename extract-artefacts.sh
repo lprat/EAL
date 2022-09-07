@@ -25,6 +25,7 @@ YARA_PATHSCAN="/"
 YARA_RULES_FS="filescan.yar"
 YARA_RULES_MEM="procscan.yar"
 EXTRACT_MAXSIZE=5
+EXTRACT_PHP=1
 FILE_TYPE=1
 FILE_MD5=0
 FILE_DELETED=0
@@ -1681,6 +1682,9 @@ fi
 ## Extract /etc
 if [ $OS == 1 ] && [ $DUMP_ETC == 1 ]; then tar zcpvf /tmp/artefacts/etc.tgz /etc/ ;fi
 if [ $OS == 2 ] && [ $DUMP_ETC == 1 ]; then tar cpvf  - /etc/| gzip -c >/tmp/artefacts/etc.tgz;fi
+
+## Extract Php
+if [ $OS == 1 ] && [ $EXTRACT_PHP == 1 ]; then find / -path /run/log -prune -o -path /etc -prune -o -path /sys -prune -o -path /var/log -prune -o \( -fstype nfs -prune \) -o \( -fstype sysfs -prune \) -o \( -fstype proc -prune \) -o -name '*.php' -o -name '*.php.*' |grep -v '^/var/log'|grep -v '^/run/log'|tar -zcpvf /tmp/artefacts/extractphp.tar.gz --files-from -;fi
 
 ## Extract log /var/log/ & /run/log
 if [ $OS == 1 ] && [ $DUMP_LOG == 1 ]; then tar zcpvf /tmp/artefacts/varlog.tgz /var/log/;fi
