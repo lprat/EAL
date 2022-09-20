@@ -188,6 +188,8 @@ then
   if [ $OS == 2 ]; then netstat -Aan ; fi
   echo -e "-------\nlsof -i:\n-------";
   lsof -i;
+  echo -e "-------\nip a:\n-------";
+  ip a;
   echo -e "-------\nRoute:\n-------";
   if [ $OS == 1 ]; then route -n;fi
   if [ $OS == 2 ]; then netstat -nr ;fi
