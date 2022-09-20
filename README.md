@@ -34,6 +34,7 @@ This tool written in bash for extract artefacts, and python(v3) for create timel
   - rpcinfo
   - identify promiscous mode
   - make relation with files (1)
+  - ip network
   - iptables rules
   - arp
   - check dns access
