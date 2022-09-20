@@ -1130,6 +1130,9 @@ def main():
                     jsonl["file_name"]=v['file_name']
                     jsonl["file_statname"]=stat_filename[v['file_name']]
                 else:
+                    print("Field file_name not present: "+str(v))
+                    continue
+                else:
                     jsonl["file_name"]=None
                     jsonl["file_statname"]=0
                 if 'file_path' in v and v['file_path']:
