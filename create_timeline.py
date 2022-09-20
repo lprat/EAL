@@ -1130,9 +1130,6 @@ def main():
                     jsonl["file_name"]=v['file_name']
                     jsonl["file_statname"]=stat_filename[v['file_name']]
                 else:
-                    print("Field file_name not present: "+str(v))
-                    continue
-                else:
                     jsonl["file_name"]=None
                     jsonl["file_statname"]=0
                 if 'file_path' in v and v['file_path']:
@@ -1339,29 +1336,38 @@ def main():
                     try:
                         date=datetime.strptime(v['lastchange'][0:-9]+v['lastchange'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
                     except:
-                        print("Error parse date on file: " + v['file_name'])
+                        print("Error parse date :"+v['lastchange'][0:-9]+v['lastchange'][-6:]+" --on file: " + str(jsonl))
                     #jsonl['timestamp']=str(int(datetime.timestamp(date)))
-                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S.%f')
-                    jsonl['timestamp_desc']="Metadata Change Time"
-                    print("%s" % (json.dumps(jsonl)),file=fx)
+                    try:
+                        jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S.%f')
+                        jsonl['timestamp_desc']="Metadata Change Time"
+                        print("%s" % (json.dumps(jsonl)),file=fx)
+                    except Exception as e:
+                        print("Errorwrite jsonl: " + str(jsonl)+" -- error:"+str(e))
                 if 'lastaccess' in v and v['lastaccess'] != '-':
                     try:
                         date=datetime.strptime(v['lastaccess'][0:-9]+v['lastaccess'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
                     except:
-                        print("Error parse date on file: " + v['file_name'])
+                        print("Error parse date :"+v['lastaccess'][0:-9]+v['lastaccess'][-6:]+" --on file: " + str(jsonl))
                     #jsonl['timestamp']=str(int(datetime.timestamp(date)))
-                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S.%f')
-                    jsonl['timestamp_desc']="Metadata Access Time"
-                    print("%s" % (json.dumps(jsonl)),file=fx)
+                    try:
+                        jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S.%f')
+                        jsonl['timestamp_desc']="Metadata Access Time"
+                        print("%s" % (json.dumps(jsonl)),file=fx)
+                    except Exception as e:
+                        print("Errorwrite jsonl: " + str(jsonl)+" -- error:"+str(e))
                 if 'createdate' in v and v['createdate'] != '-':
                     try:
                         date=datetime.strptime(v['createdate'][0:-9]+v['createdate'][-6:], '%Y-%m-%d %H:%M:%S.%f %z')
                     except:
-                        print("Error parse date on file: " + v['file_name'])
+                        print("Error parse date :"+v['createdate'][0:-9]+v['createdate'][-6:]+" --on file: " + str(jsonl))
                     #jsonl['timestamp']=str(int(datetime.timestamp(date)))
-                    jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S.%f')
-                    jsonl['timestamp_desc']="Metadata Create Time"
-                    print("%s" % (json.dumps(jsonl)),file=fx)
+                    try:
+                        jsonl['datetime']=date.strftime('%Y-%m-%dT%H:%M:%S.%f')
+                        jsonl['timestamp_desc']="Metadata Create Time"
+                        print("%s" % (json.dumps(jsonl)),file=fx)
+                    except Exception as e:
+                        print("Errorwrite jsonl: " + str(jsonl)+" -- error:"+str(e))
             fx.close()    
 
 if __name__ == '__main__':
