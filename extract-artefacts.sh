@@ -1,6 +1,6 @@
 #!/bin/bash
 # Linux extract artefact for forensic
-# (c) 2019 - 2020, Lionel PRAT <lionel.prat9 (at) gmail.com>
+# (c) 2019 - 2022, Lionel PRAT <lionel.prat9 (at) gmail.com>
 # source code: https://github.com/lprat/EAL/
 
 #ATTACH_TOOLS
