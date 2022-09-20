@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #Create Json timeline from linux/aix artefacts - Import in TimeSketch !!
-# (c) 2019 - 2020, Lionel PRAT <lionel.prat9 (at) gmail.com>
+# (c) 2019 - 2022, Lionel PRAT <lionel.prat9 (at) gmail.com>
 #TODO:
 # add tag in file for:
 # - type =! ext =! entropy
